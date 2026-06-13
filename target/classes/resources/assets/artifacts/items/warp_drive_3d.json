@@ -1,0 +1,6 @@
+{
+    "model": {
+        "type": "minecraft:model",
+        "model": "artifacts:item/warp_drive_3d"
+    }
+}

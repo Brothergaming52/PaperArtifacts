@@ -1,0 +1,23 @@
+name: Artifacts
+version: '${project.version}'
+main: org.bg52.artifacts.Artifacts
+api-version: '1.14'
+depend: [CuriosPaper]
+
+commands:
+  surprise-me:
+    description: Spawn a mysterious surprise for you
+    usage: /surprise-me
+    permission: artifacts.surprise
+  artifacts:
+    description: Manage artifact items
+    usage: /artifacts <give|list|reload>
+    permission: artifacts.admin
+
+permissions:
+  artifacts.surprise:
+    description: Allows spawning mimics
+    default: op
+  artifacts.admin:
+    description: Allows managing artifact items
+    default: op
