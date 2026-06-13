@@ -4,7 +4,7 @@
 
 ### 45+ Magical Accessories & Exploration Content for CuriosPaper
 
-[![Version](https://img.shields.io/badge/version-1.0-blueviolet?style=for-the-badge)](https://github.com/Brothergaming52/Artifacts/releases)
+[![Version](https://img.shields.io/badge/version-1.1-blueviolet?style=for-the-badge)](https://github.com/Brothergaming52/Artifacts/releases)
 [![Minecraft](https://img.shields.io/badge/minecraft-1.14.4%20—%2026.1+-green?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0id2hpdGUiIGQ9Ik0xMiAyQzYuNSAyIDIgNi41IDIgMTJzNC41IDEwIDEwIDEwIDEwLTQuNSAxMC0xMFMxNy41IDIgMTIgMnoiLz48L3N2Zz4=)](https://www.spigotmc.org/)
 [![Discord](https://img.shields.io/discord/1456137607569346739?label=Discord&style=for-the-badge&logo=discord&logoColor=white&color=5865F2)](https://discord.gg/r5YXqgrGya)
 [![bStats](https://img.shields.io/badge/bStats-live-blue?style=for-the-badge)](https://bstats.org/plugin/bukkit/Artifacts/30728)
