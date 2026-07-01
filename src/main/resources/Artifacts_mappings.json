@@ -1,0 +1,433 @@
+{
+  "format_version": "1",
+  "items": {
+    "minecraft:beef": [
+      {
+        "name": "artifacts_everlasting_beef",
+        "allow_offhand": true,
+        "icon": "artifacts_everlasting_beef",
+        "custom_model_data": 201011
+      }
+    ],
+    "minecraft:carrot_on_a_stick": [
+      {
+        "name": "artifacts_snorkel",
+        "allow_offhand": true,
+        "icon": "artifacts_snorkel",
+        "custom_model_data": 201013
+      },
+      {
+        "name": "artifacts_villager_hat",
+        "allow_offhand": true,
+        "icon": "artifacts_villager_hat",
+        "custom_model_data": 201014
+      },
+      {
+        "name": "artifacts_superstitious_hat",
+        "allow_offhand": true,
+        "icon": "artifacts_superstitious_hat",
+        "custom_model_data": 201015
+      },
+      {
+        "name": "artifacts_cowboy_hat",
+        "allow_offhand": true,
+        "icon": "artifacts_cowboy_hat",
+        "custom_model_data": 201016
+      },
+      {
+        "name": "artifacts_lucky_scarf",
+        "allow_offhand": true,
+        "icon": "artifacts_lucky_scarf",
+        "custom_model_data": 201017
+      },
+      {
+        "name": "artifacts_cross_necklace",
+        "allow_offhand": true,
+        "icon": "artifacts_cross_necklace",
+        "custom_model_data": 201018
+      },
+      {
+        "name": "artifacts_panic_necklace",
+        "allow_offhand": true,
+        "icon": "artifacts_panic_necklace",
+        "custom_model_data": 201019
+      },
+      {
+        "name": "artifacts_shock_pendant",
+        "allow_offhand": true,
+        "icon": "artifacts_shock_pendant",
+        "custom_model_data": 201020
+      },
+      {
+        "name": "artifacts_flame_pendant",
+        "allow_offhand": true,
+        "icon": "artifacts_flame_pendant",
+        "custom_model_data": 201021
+      },
+      {
+        "name": "artifacts_plastic_drinking_hat",
+        "allow_offhand": true,
+        "icon": "artifacts_plastic_drinking_hat",
+        "custom_model_data": 201022
+      },
+      {
+        "name": "artifacts_novelty_drinking_hat",
+        "allow_offhand": true,
+        "icon": "artifacts_novelty_drinking_hat",
+        "custom_model_data": 201023
+      },
+      {
+        "name": "artifacts_night_vision_goggles",
+        "allow_offhand": true,
+        "icon": "artifacts_night_vision_goggles",
+        "custom_model_data": 201024
+      },
+      {
+        "name": "artifacts_anglers_hat",
+        "allow_offhand": true,
+        "icon": "artifacts_anglers_hat",
+        "custom_model_data": 201025
+      },
+      {
+        "name": "artifacts_scarf_of_invisibility",
+        "allow_offhand": true,
+        "icon": "artifacts_scarf_of_invisibility",
+        "custom_model_data": 201026
+      },
+      {
+        "name": "artifacts_thorn_pendant",
+        "allow_offhand": true,
+        "icon": "artifacts_thorn_pendant",
+        "custom_model_data": 201027
+      },
+      {
+        "name": "artifacts_charm_of_sinking",
+        "allow_offhand": true,
+        "icon": "artifacts_charm_of_sinking",
+        "custom_model_data": 201028
+      },
+      {
+        "name": "artifacts_cloud_in_a_bottle",
+        "allow_offhand": true,
+        "icon": "artifacts_cloud_in_a_bottle",
+        "custom_model_data": 201029
+      },
+      {
+        "name": "artifacts_obsidian_skull",
+        "allow_offhand": true,
+        "icon": "artifacts_obsidian_skull",
+        "custom_model_data": 201030
+      },
+      {
+        "name": "artifacts_antidote_vessel",
+        "allow_offhand": true,
+        "icon": "artifacts_antidote_vessel",
+        "custom_model_data": 201031
+      },
+      {
+        "name": "artifacts_universal_attractor",
+        "allow_offhand": true,
+        "icon": "artifacts_universal_attractor",
+        "custom_model_data": 201032
+      },
+      {
+        "name": "artifacts_crystal_heart",
+        "allow_offhand": true,
+        "icon": "artifacts_crystal_heart",
+        "custom_model_data": 201033
+      },
+      {
+        "name": "artifacts_helium_flamingo",
+        "allow_offhand": true,
+        "icon": "artifacts_helium_flamingo",
+        "custom_model_data": 201034
+      },
+      {
+        "name": "artifacts_digging_claws",
+        "allow_offhand": true,
+        "icon": "artifacts_digging_claws",
+        "custom_model_data": 201036
+      },
+      {
+        "name": "artifacts_feral_claws",
+        "allow_offhand": true,
+        "icon": "artifacts_feral_claws",
+        "custom_model_data": 201037
+      },
+      {
+        "name": "artifacts_power_glove",
+        "allow_offhand": true,
+        "icon": "artifacts_power_glove",
+        "custom_model_data": 201038
+      },
+      {
+        "name": "artifacts_fire_gauntlet",
+        "allow_offhand": true,
+        "icon": "artifacts_fire_gauntlet",
+        "custom_model_data": 201039
+      },
+      {
+        "name": "artifacts_pocket_piston",
+        "allow_offhand": true,
+        "icon": "artifacts_pocket_piston",
+        "custom_model_data": 201040
+      },
+      {
+        "name": "artifacts_vampiric_glove",
+        "allow_offhand": true,
+        "icon": "artifacts_vampiric_glove",
+        "custom_model_data": 201041
+      },
+      {
+        "name": "artifacts_golden_hook",
+        "allow_offhand": true,
+        "icon": "artifacts_golden_hook",
+        "custom_model_data": 201042
+      },
+      {
+        "name": "artifacts_onion_ring",
+        "allow_offhand": true,
+        "icon": "artifacts_onion_ring",
+        "custom_model_data": 201043
+      },
+      {
+        "name": "artifacts_pickaxe_heater",
+        "allow_offhand": true,
+        "icon": "artifacts_pickaxe_heater",
+        "custom_model_data": 201044
+      },
+      {
+        "name": "artifacts_aqua_dashers",
+        "allow_offhand": true,
+        "icon": "artifacts_aqua_dashers",
+        "custom_model_data": 201045
+      },
+      {
+        "name": "artifacts_bunny_hoppers",
+        "allow_offhand": true,
+        "icon": "artifacts_bunny_hoppers",
+        "custom_model_data": 201046
+      },
+      {
+        "name": "artifacts_kitty_slippers",
+        "allow_offhand": true,
+        "icon": "artifacts_kitty_slippers",
+        "custom_model_data": 201047
+      },
+      {
+        "name": "artifacts_running_shoes",
+        "allow_offhand": true,
+        "icon": "artifacts_running_shoes",
+        "custom_model_data": 201048
+      },
+      {
+        "name": "artifacts_snowshoes",
+        "allow_offhand": true,
+        "icon": "artifacts_snowshoes",
+        "custom_model_data": 201049
+      },
+      {
+        "name": "artifacts_steadfast_spikes",
+        "allow_offhand": true,
+        "icon": "artifacts_steadfast_spikes",
+        "custom_model_data": 201050
+      },
+      {
+        "name": "artifacts_flippers",
+        "allow_offhand": true,
+        "icon": "artifacts_flippers",
+        "custom_model_data": 201051
+      },
+      {
+        "name": "artifacts_rooted_boots",
+        "allow_offhand": true,
+        "icon": "artifacts_rooted_boots",
+        "custom_model_data": 201052
+      },
+      {
+        "name": "artifacts_strider_shoes",
+        "allow_offhand": true,
+        "icon": "artifacts_strider_shoes",
+        "custom_model_data": 201054
+      },
+      {
+        "name": "artifacts_warp_drive",
+        "allow_offhand": true,
+        "icon": "artifacts_warp_drive",
+        "custom_model_data": 201055
+      },
+      {
+        "name": "artifacts_charm_of_shrinking",
+        "allow_offhand": true,
+        "icon": "artifacts_charm_of_shrinking",
+        "custom_model_data": 201056
+      },
+      {
+        "name": "artifacts_withered_bracelet",
+        "allow_offhand": true,
+        "icon": "artifacts_withered_bracelet",
+        "custom_model_data": 201057
+      },
+      {
+        "name": "artifacts_lucky_scarf_3d",
+        "allow_offhand": true,
+        "icon": "artifacts_lucky_scarf",
+        "frame": 0,
+        "custom_model_data": 202017
+      },
+      {
+        "name": "artifacts_cross_necklace_3d",
+        "allow_offhand": true,
+        "icon": "artifacts_cross_necklace",
+        "frame": 0,
+        "custom_model_data": 202018
+      },
+      {
+        "name": "artifacts_panic_necklace_3d",
+        "allow_offhand": true,
+        "icon": "artifacts_panic_necklace",
+        "frame": 0,
+        "custom_model_data": 202019
+      },
+      {
+        "name": "artifacts_shock_pendant_3d",
+        "allow_offhand": true,
+        "icon": "artifacts_shock_pendant",
+        "frame": 0,
+        "custom_model_data": 202020
+      },
+      {
+        "name": "artifacts_flame_pendant_3d",
+        "allow_offhand": true,
+        "icon": "artifacts_flame_pendant",
+        "frame": 0,
+        "custom_model_data": 202021
+      },
+      {
+        "name": "artifacts_scarf_of_invisibility_3d",
+        "allow_offhand": true,
+        "icon": "artifacts_scarf_of_invisibility",
+        "frame": 0,
+        "custom_model_data": 202026
+      },
+      {
+        "name": "artifacts_thorn_pendant_3d",
+        "allow_offhand": true,
+        "icon": "artifacts_thorn_pendant",
+        "frame": 0,
+        "custom_model_data": 202027
+      },
+      {
+        "name": "artifacts_charm_of_sinking_3d",
+        "allow_offhand": true,
+        "icon": "artifacts_charm_of_sinking",
+        "frame": 0,
+        "custom_model_data": 202028
+      },
+      {
+        "name": "artifacts_cloud_in_a_bottle_3d",
+        "allow_offhand": true,
+        "icon": "artifacts_cloud_in_a_bottle",
+        "frame": 0,
+        "custom_model_data": 202029
+      },
+      {
+        "name": "artifacts_obsidian_skull_3d",
+        "allow_offhand": true,
+        "icon": "artifacts_obsidian_skull",
+        "frame": 0,
+        "custom_model_data": 202030
+      },
+      {
+        "name": "artifacts_antidote_vessel_3d",
+        "allow_offhand": true,
+        "icon": "artifacts_antidote_vessel",
+        "frame": 0,
+        "custom_model_data": 202031
+      },
+      {
+        "name": "artifacts_universal_attractor_3d",
+        "allow_offhand": true,
+        "icon": "artifacts_universal_attractor",
+        "frame": 0,
+        "custom_model_data": 202032
+      },
+      {
+        "name": "artifacts_crystal_heart_3d",
+        "allow_offhand": true,
+        "icon": "artifacts_crystal_heart",
+        "frame": 0,
+        "custom_model_data": 202033
+      },
+      {
+        "name": "artifacts_helium_flamingo_3d",
+        "allow_offhand": true,
+        "icon": "artifacts_helium_flamingo",
+        "frame": 0,
+        "custom_model_data": 202034
+      },
+      {
+        "name": "artifacts_warp_drive_3d",
+        "allow_offhand": true,
+        "icon": "artifacts_warp_drive",
+        "frame": 0,
+        "custom_model_data": 202055
+      },
+      {
+        "name": "artifacts_charm_of_shrinking_3d",
+        "allow_offhand": true,
+        "icon": "artifacts_charm_of_shrinking",
+        "frame": 0,
+        "custom_model_data": 202056
+      }
+    ],
+    "minecraft:cooked_beef": [
+      {
+        "name": "artifacts_eternal_steak",
+        "allow_offhand": true,
+        "icon": "artifacts_eternal_steak",
+        "custom_model_data": 201012
+      }
+    ],
+    "minecraft:iron_boots": [
+      {
+        "name": "artifacts_feet",
+        "allow_offhand": true,
+        "icon": "artifacts_feet",
+        "custom_model_data": 201100
+      }
+    ],
+    "minecraft:shield": [
+      {
+        "name": "artifacts_umbrella",
+        "allow_offhand": true,
+        "icon": "artifacts_umbrella",
+        "frame": 0,
+        "custom_model_data": 201010
+      }
+    ],
+    "minecraft:slime_ball": [
+      {
+        "name": "artifacts_real_slime_ball",
+        "allow_offhand": true,
+        "icon": "artifacts_real_slime_ball",
+        "custom_model_data": 1
+      }
+    ],
+    "minecraft:totem_of_undying": [
+      {
+        "name": "artifacts_chorus_totem",
+        "allow_offhand": true,
+        "icon": "artifacts_chorus_totem",
+        "custom_model_data": 201035
+      },
+      {
+        "name": "artifacts_chorus_totem_3d",
+        "allow_offhand": true,
+        "icon": "artifacts_chorus_totem",
+        "frame": 0,
+        "custom_model_data": 202035
+      }
+    ]
+  }
+}

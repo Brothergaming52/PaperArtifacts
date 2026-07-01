@@ -56,6 +56,15 @@ public final class Artifacts extends JavaPlugin {
         public void onEnable() {
                 getLogger().info("Artifacts enabling on MC " + VersionUtil.getVersionString() + "...");
 
+                CuriosPaper curiosPaper = CuriosPaper.getInstance();
+                this.curiosPaperAPI = curiosPaper.getCuriosPaperAPI();
+
+                if (curiosPaperAPI == null) {
+                        getLogger().severe("CuriosPaper API not available! Disabling.");
+                        getServer().getPluginManager().disablePlugin(this);
+                        return;
+                }
+
                 // Initialize config manager (loads config.yml)
                 artifactConfig = new ArtifactConfigManager(this);
 
@@ -77,15 +86,6 @@ public final class Artifacts extends JavaPlugin {
 
                 // Initialize cooldown manager
                 cooldownManager = new CooldownManager();
-
-                CuriosPaper curiosPaper = CuriosPaper.getInstance();
-                this.curiosPaperAPI = curiosPaper.getCuriosPaperAPI();
-
-                if (curiosPaperAPI == null) {
-                        getLogger().severe("CuriosPaper API not available! Disabling.");
-                        getServer().getPluginManager().disablePlugin(this);
-                        return;
-                }
 
                 // Register resource pack assets from this JAR
                 curiosPaperAPI.registerResourcePackAssetsFromJar(this);
@@ -217,6 +217,9 @@ public final class Artifacts extends JavaPlugin {
                 int pluginId = 30728;
                 new Metrics(this, pluginId);
 
+                // Setup Geyser integration if present
+                checkAndSetupGeyserIntegration();
+
                 getLogger().info("Artifacts enabled. " + ArtifactItem().length + " items registered. "
                                 + "Item model support: " + VersionUtil.supportsItemModel());
         }
@@ -292,5 +295,75 @@ public final class Artifacts extends JavaPlugin {
 
         public CampsiteConfig getCampsiteConfig() {
                 return campsiteConfig;
+        }
+
+        private void checkAndSetupGeyserIntegration() {
+                // 1. Always extract to plugins/Artifacts/geyser/
+                java.io.File localGeyserFolder = new java.io.File(getDataFolder(), "geyser");
+                if (!localGeyserFolder.exists()) {
+                        localGeyserFolder.mkdirs();
+                }
+
+                java.io.File localMappings = new java.io.File(localGeyserFolder, "Artifacts_mappings.json");
+                java.io.File localPack = new java.io.File(localGeyserFolder, "Artifacts_Geyser.zip");
+
+                try (java.io.InputStream in = getResource("Artifacts_mappings.json")) {
+                        if (in != null) {
+                                java.nio.file.Files.copy(in, localMappings.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                        }
+                } catch (Exception e) {
+                        getLogger().warning("Failed to extract Artifacts_mappings.json to local geyser folder: " + e.getMessage());
+                }
+
+                try (java.io.InputStream in = getResource("Artifacts_Geyser.zip")) {
+                        if (in != null) {
+                                java.nio.file.Files.copy(in, localPack.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                        }
+                } catch (Exception e) {
+                        getLogger().warning("Failed to extract Artifacts_Geyser.zip to local geyser folder: " + e.getMessage());
+                }
+
+                // 2. Detect GeyserMC plugins folder on the server
+                java.io.File pluginsFolder = getDataFolder().getParentFile();
+                java.io.File geyserFolder = new java.io.File(pluginsFolder, "Geyser-Spigot");
+                if (!geyserFolder.exists()) {
+                        geyserFolder = new java.io.File(pluginsFolder, "Geyser");
+                }
+
+                if (geyserFolder.exists() && geyserFolder.isDirectory()) {
+                        getLogger().info("GeyserMC directory detected at '" + geyserFolder.getName() + "'! Copying Bedrock compatibility pack & mappings...");
+                        try {
+                                // Copy Mappings to Geyser's custom_mappings folder
+                                java.io.File mappingsDestFolder = new java.io.File(geyserFolder, "custom_mappings");
+                                if (!mappingsDestFolder.exists()) {
+                                        mappingsDestFolder.mkdirs();
+                                }
+                                java.io.File mappingsDest = new java.io.File(mappingsDestFolder, "Artifacts_mappings.json");
+                                try (java.io.InputStream in = getResource("Artifacts_mappings.json")) {
+                                        if (in != null) {
+                                                java.nio.file.Files.copy(in, mappingsDest.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                                                getLogger().info("Successfully copied Artifacts_mappings.json to Geyser custom_mappings.");
+                                        }
+                                }
+
+                                // Copy Resource Pack to Geyser's packs folder
+                                java.io.File packsDestFolder = new java.io.File(geyserFolder, "packs");
+                                if (!packsDestFolder.exists()) {
+                                        packsDestFolder.mkdirs();
+                                }
+                                java.io.File packDest = new java.io.File(packsDestFolder, "Artifacts_Geyser.zip");
+                                try (java.io.InputStream in = getResource("Artifacts_Geyser.zip")) {
+                                        if (in != null) {
+                                                java.nio.file.Files.copy(in, packDest.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                                                getLogger().info("Successfully copied Artifacts_Geyser.zip to Geyser packs.");
+                                        }
+                                }
+                        } catch (Exception e) {
+                                getLogger().severe("Failed to copy compatibility files to Geyser MC directory: " + e.getMessage());
+                                e.printStackTrace();
+                        }
+                } else {
+                        getLogger().info("GeyserMC folder not detected in plugins directory. Setup skipped.");
+                }
         }
 }

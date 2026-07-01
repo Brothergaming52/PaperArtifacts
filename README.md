@@ -184,7 +184,19 @@ Chests can also be **trapped** with TNT underneath. Exploration is rewarding —
 | **Minecraft** | 1.14.4 — 26.1+ |
 | **Server** | Paper, Spigot, Purpur |
 | **Java** | 8+ |
+| **GeyserMC** | Supported (custom Bedrock resource pack & mappings included) |
 | **Required** | [CuriosPaper](https://modrinth.com/plugin/curiospaper) v1.3.0+ |
+
+### 🌐 Geyser & Bedrock Edition Support
+
+PaperArtifacts provides full GUI slot icon and item texture support for Bedrock Edition players joining via GeyserMC.
+
+- **Automatic Setup:** If Geyser is running on the same server, PaperArtifacts will automatically detect Geyser's folder on startup, extract the mappings and resource pack, and copy them directly to Geyser's `packs/` and `custom_mappings/` folders.
+- **Manual Setup (Proxy/Separate Server):** If Geyser is hosted on a separate proxy (e.g. Velocity/BungeeCord) or automatic setup is skipped:
+  1. Retrieve the files from your server's `plugins/Artifacts/geyser/` directory (extracted on startup).
+  2. Copy `Artifacts_Geyser.zip` into your Geyser `packs/` folder.
+  3. Copy `Artifacts_mappings.json` into your Geyser `custom_mappings/` folder.
+  4. Ensure `enable-custom-content` is set to `true` in Geyser's `config.yml` and restart Geyser.
 
 ---
 

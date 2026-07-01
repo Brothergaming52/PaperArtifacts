@@ -4,13 +4,16 @@ import org.bg52.artifacts.Artifacts;
 import org.bg52.artifacts.item.ArtifactItem;
 import org.bg52.artifacts.util.ArtifactUtil;
 import org.bg52.curiospaper.api.CuriosPaperAPI;
+import org.bukkit.Tag;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.metadata.FixedMetadataValue;
 
 import java.util.Collection;
 import java.util.Random;
@@ -33,6 +36,16 @@ public class LuckyScarfListener implements Listener {
         this.api = api;
     }
 
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onBlockPlace(BlockPlaceEvent event) {
+        event.getBlock().setMetadata("placed", new FixedMetadataValue(plugin, true));
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onBlockBreakCleanup(BlockBreakEvent event) {
+        event.getBlock().removeMetadata("placed", plugin);
+    }
+
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onBlockBreak(BlockBreakEvent event) {
         if (!plugin.getArtifactConfig().isItemEnabled("lucky_scarf")) return;
@@ -42,6 +55,13 @@ public class LuckyScarfListener implements Listener {
         if (!ArtifactUtil.hasEquipped(player, ArtifactItem.LUCKY_SCARF, api)) return;
 
         Block block = event.getBlock();
+
+        // Prevent exploit on player-placed blocks
+        if (block.hasMetadata("placed")) return;
+
+        // Only apply to natural ore blocks
+        if (!block.getType().name().contains("_ORE")) return;
+
         int bonusLevels = plugin.getArtifactConfig().getLuckyScarfFortuneBonus();
 
         // Get the block drops using the player's current tool
@@ -62,3 +82,4 @@ public class LuckyScarfListener implements Listener {
         }
     }
 }
+
