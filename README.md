@@ -4,7 +4,7 @@
 
 ### 45+ Magical Accessories & Exploration Content for CuriosPaper
 
-[![Version](https://img.shields.io/badge/version-1.1-blueviolet?style=for-the-badge)](https://github.com/Brothergaming52/Artifacts/releases)
+[![Version](https://img.shields.io/badge/version-1.3-blueviolet?style=for-the-badge)](https://github.com/Brothergaming52/Artifacts/releases)
 [![Minecraft](https://img.shields.io/badge/minecraft-1.14.4%20—%2026.1+-green?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0id2hpdGUiIGQ9Ik0xMiAyQzYuNSAyIDIgNi41IDIgMTJzNC41IDEwIDEwIDEwIDEwLTQuNSAxMC0xMFMxNy41IDIgMTIgMnoiLz48L3N2Zz4=)](https://www.spigotmc.org/)
 [![Discord](https://img.shields.io/discord/1456137607569346739?label=Discord&style=for-the-badge&logo=discord&logoColor=white&color=5865F2)](https://discord.gg/r5YXqgrGya)
 [![bStats](https://img.shields.io/badge/bStats-live-blue?style=for-the-badge)](https://bstats.org/plugin/bukkit/Artifacts/30728)
@@ -38,12 +38,14 @@ Every item is fully configurable, has a custom resource pack model, and works ou
 
 ---
 
-## 🚀 What's New in v1.2
+## 🚀 What's New in v1.3
 
-- 🕊️ **Modern Double Jump Engine:** Double jumping with the *Cloud in a Bottle* now utilizes modern input-packet events on Paper servers for unmatched responsiveness, preventing conflicts with creative flight or client mods.
-- 🛡️ **Lucky Scarf Anti-Exploit:** Implemented block placement tracking via metadata, preventing duplication exploits. The +1 Fortune bonus now correctly applies strictly to natural ore blocks.
-- 💾 **Database-Backed Mimics:** Mimic chest locations are now stored asynchronously via CuriosPaper's Storage API (supporting SQLite, MySQL, and MongoDB) for reliable cross-restart persistence.
-- 🌐 **GeyserMC & Bedrock Support:** Fully integrated automatic bedrock pack extraction and custom mappings injection.
+- 🛠️ **Full Item Customization (`artifacts.yml`):** Fully customize every artifact item's display name, material, CustomModelData, item-model key, slot type, lore, 3D model settings, and custom abilities.
+- 👹 **Mimic Spawning & Modern Lifecycle:** Added `/artifacts mimic` command to spawn mimic chests at your location. Refactored entity spawning with modern consumer callbacks for clean, glitch-free lifecycle management.
+- 📐 **Configurable Charm of Shrinking:** Added customizable `scale-modifier` and `scale-operation` configuration options for the Charm of Shrinking on 1.20.5+.
+- 🏕️ **Enhanced Campsite Population & Config:** Improved campsite generation density control and robust configuration fallback compatibility across `campsite.yml` and `config.yml`.
+- ⚡ **Instant Hot Reload & Attribute Safety:** `/artifacts reload` now updates item registrations, abilities, campsites, and mimic drops on the fly. Attribute modifier handling is hardened with multi-identifier cleanup to prevent phantom modifiers.
+- 🌐 **Robust Version Parsing:** Upgraded regex-based server version parser ensuring seamless compatibility across custom Paper forks and modern build strings.
 
 ---
 
@@ -55,7 +57,7 @@ Every item is fully configurable, has a custom resource pack model, and works ou
 - 👹 **Mimics** — chest-shaped mobs hiding in campsites that attack when you try to open them
 - 🗺️ **Loot table integration** — artifacts appear in vanilla dungeon chests, temples, bastions, and more
 - 🧟 **Mob drops** — themed artifacts drop from specific mobs
-- ⚙️ **Fully configurable** — enable/disable and tune every item and feature in `config.yml`
+- ⚙️ **Fully configurable** — enable/disable and tune every item and feature in `config.yml` and `artifacts.yml`
 - 🔧 **Hot reload** — `/artifacts reload` applies changes instantly
 
 ---
@@ -172,7 +174,7 @@ Chests can also be **trapped** with TNT underneath. Exploration is rewarding —
 | 🧟 **Mob Drops** | Specific mobs drop themed artifacts (e.g. Drowned → Flippers) |
 | 🏕️ **Campsites** | Underground structures with loot chests and a chance for artifacts |
 | 👹 **Mimics** | Kill a mimic in a campsite for a guaranteed artifact |
-| 📋 **Commands** | `/artifacts give <item> [player]` for admins |
+| 📋 **Commands** | `/curios give <item> [player]` or `/artifacts mimic` |
 
 ---
 
@@ -262,4 +264,3 @@ Get help · Report bugs · Suggest features
 [CuriosPaper](https://modrinth.com/plugin/curiospaper) · [Discord](https://discord.gg/r5YXqgrGya) · [Ko-fi](https://ko-fi.com/brothergaming52) · [bStats](https://bstats.org/plugin/bukkit/Artifacts/30728)
 
 </div>
-"# PaperArtifacts" 
