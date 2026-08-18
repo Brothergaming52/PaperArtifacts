@@ -167,11 +167,12 @@ public class CampsitePopulator extends BlockPopulator {
 
     @Override
     public void populate(World world, Random random, Chunk chunk) {
-        if (cfg.getCount() <= 0)
+        CampsiteConfig config = plugin.getCampsiteConfig();
+        if (config == null || config.getCount() <= 0)
             return;
         
         // Check if campsites are enabled for this world
-        if (!cfg.isWorldEnabled(world.getName()))
+        if (!config.isWorldEnabled(world.getName()))
             return;
 
         int baseX = chunk.getX() * 16;
@@ -181,11 +182,8 @@ public class CampsitePopulator extends BlockPopulator {
         if (random.nextInt(10) != 0)
             return;
 
-        // Count-gated: try cfg.getCount() times but only 1 per chunk on average at
-        // default
-        // (The original uses a custom placement modifier that limits globally,
-        // here we do one attempt per chunk that passes the rarity filter)
-        for (int attempt = 0; attempt < 1; attempt++) {
+        int maxAttempts = config.getCount();
+        for (int attempt = 0; attempt < maxAttempts; attempt++) {
             int lx = random.nextInt(16);
             int lz = random.nextInt(16);
             int x = baseX + lx;
@@ -195,11 +193,12 @@ public class CampsitePopulator extends BlockPopulator {
             if (y == Integer.MIN_VALUE)
                 continue;
 
-            if (cfg.isMinimalistCampsites()) {
+            if (config.isMinimalistCampsites()) {
                 placeMinimalistCampsite(world, x, y, z, random);
             } else {
                 placeCampsite(world, x, y, z, random);
             }
+            break;
         }
     }
 

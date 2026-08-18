@@ -52,7 +52,42 @@ public class ArtifactConfigManager {
     // ──────────────────────────────────────────────
 
     public boolean isItemEnabled(String itemId) {
-        return config.getBoolean("items." + itemId + ".enabled", true);
+        if (itemId == null) return false;
+        
+        // 1. Check items.<id>.enabled
+        if (config.contains("items." + itemId + ".enabled")) {
+            return config.getBoolean("items." + itemId + ".enabled");
+        }
+        
+        // 2. Check items.<id-with-hyphens>.enabled
+        String hyphenId = itemId.replace('_', '-');
+        if (config.contains("items." + hyphenId + ".enabled")) {
+            return config.getBoolean("items." + hyphenId + ".enabled");
+        }
+        
+        // 3. Check direct boolean items.<id>
+        if (config.isBoolean("items." + itemId)) {
+            return config.getBoolean("items." + itemId);
+        }
+        if (config.isBoolean("items." + hyphenId)) {
+            return config.getBoolean("items." + hyphenId);
+        }
+
+        // 4. Check root-level <id>.enabled or <id>
+        if (config.contains(itemId + ".enabled")) {
+            return config.getBoolean(itemId + ".enabled");
+        }
+        if (config.contains(hyphenId + ".enabled")) {
+            return config.getBoolean(hyphenId + ".enabled");
+        }
+        if (config.isBoolean(itemId)) {
+            return config.getBoolean(itemId);
+        }
+        if (config.isBoolean(hyphenId)) {
+            return config.getBoolean(hyphenId);
+        }
+
+        return true;
     }
 
     // ──────────────────────────────────────────────
@@ -420,11 +455,6 @@ public class ArtifactConfigManager {
     }
 
     // ──────────────────────────────────────────────
-    // Whoopee Cushion
-    // ──────────────────────────────────────────────
-
-
-    // ──────────────────────────────────────────────
     // Withered Bracelet
     // ──────────────────────────────────────────────
 
@@ -446,6 +476,23 @@ public class ArtifactConfigManager {
 
     public int getWarpDriveHungerCost() {
         return config.getInt("items.warp_drive.hunger-cost", 2);
+    }
+
+    // ──────────────────────────────────────────────
+    // Charm of Shrinking
+    // ──────────────────────────────────────────────
+
+    public double getCharmOfShrinkingScaleModifier() {
+        return config.getDouble("items.charm_of_shrinking.scale-modifier", -0.5);
+    }
+
+    public org.bukkit.attribute.AttributeModifier.Operation getCharmOfShrinkingScaleOperation() {
+        String opStr = config.getString("items.charm_of_shrinking.scale-operation", "ADD_SCALAR");
+        try {
+            return org.bukkit.attribute.AttributeModifier.Operation.valueOf(opStr.toUpperCase());
+        } catch (Exception e) {
+            return org.bukkit.attribute.AttributeModifier.Operation.ADD_SCALAR;
+        }
     }
 
     private boolean isOlder(String v1, String v2) {

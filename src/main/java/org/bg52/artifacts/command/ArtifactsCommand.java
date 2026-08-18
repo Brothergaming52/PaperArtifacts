@@ -13,7 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * /artifacts give <item_id> [player] — gives an artifact item to a player.
+ * /artifacts mimic — spawns a mimic chest at the player's current location.
  * /artifacts reload — reloads the config.
  * /artifacts list — lists all artifact items.
  *
@@ -42,8 +42,8 @@ public class ArtifactsCommand implements CommandExecutor, TabCompleter {
         String subcommand = args[0].toLowerCase();
 
         switch (subcommand) {
-            case "give":
-                return handleGive(sender, args);
+            case "mimic":
+                return handleMimic(sender);
             case "reload":
                 return handleReload(sender);
             case "list":
@@ -54,53 +54,42 @@ public class ArtifactsCommand implements CommandExecutor, TabCompleter {
         }
     }
 
-    private boolean handleGive(CommandSender sender, String[] args) {
-        if (args.length < 2) {
-            sender.sendMessage("\u00a7cUsage: /artifacts give <item_id> [player]");
+    private boolean handleMimic(CommandSender sender) {
+        if (!(sender instanceof Player)) {
+            sender.sendMessage("\u00a7cOnly players can use this command.");
             return true;
         }
 
-        String itemId = args[1].toLowerCase();
-        ArtifactItem artifact = ArtifactItem.fromId(itemId);
-        if (artifact == null) {
-            sender.sendMessage("\u00a7cUnknown artifact: " + itemId);
-            sender.sendMessage("\u00a77Use /artifacts list to see available items.");
-            return true;
-        }
+        Player player = (Player) sender;
+        org.bukkit.block.Block block = player.getLocation().getBlock();
+        block.setType(org.bukkit.Material.CHEST);
+        plugin.getMimicManager().addMimicChest(block.getLocation());
 
-        Player target;
-        if (args.length >= 3) {
-            target = plugin.getServer().getPlayer(args[2]);
-            if (target == null) {
-                sender.sendMessage("\u00a7cPlayer not found: " + args[2]);
-                return true;
-            }
-        } else if (sender instanceof Player) {
-            target = (Player) sender;
-        } else {
-            sender.sendMessage("\u00a7cSpecify a player: /artifacts give " + itemId + " <player>");
-            return true;
-        }
-
-        ItemStack item = plugin.getItemRegistry().createItemStack(artifact);
-        if (item == null) {
-            sender.sendMessage("\u00a7cFailed to create item: " + itemId);
-            return true;
-        }
-
-        target.getInventory().addItem(item);
-        sender.sendMessage("\u00a7aGave " + artifact.getDisplayName() + " \u00a7ato " + target.getName());
-
-        if (target != sender) {
-            target.sendMessage("\u00a7aYou received " + artifact.getDisplayName());
-        }
-
+        player.sendMessage("\u00a7aSpawned a mimic chest at your location.");
         return true;
     }
 
     private boolean handleReload(CommandSender sender) {
         plugin.getArtifactConfig().reload();
-        plugin.getStoneTierManager().load();
+        if (plugin.getArtifactItemsConfig() != null) {
+            plugin.getArtifactItemsConfig().reload();
+        }
+        if (plugin.getCampsiteConfig() != null) {
+            plugin.getCampsiteConfig().reload();
+        }
+        if (plugin.getMimicConfig() != null) {
+            plugin.getMimicConfig().reload();
+        }
+        if (plugin.getStoneTierManager() != null) {
+            plugin.getStoneTierManager().load();
+        }
+        if (plugin.getPassiveArtifactsListener() != null) {
+            plugin.getPassiveArtifactsListener().reload();
+        }
+        org.bg52.artifacts.util.FoodUtil.loadFoodInfo(plugin);
+        if (plugin.getItemRegistry() != null) {
+            plugin.getItemRegistry().registerAll();
+        }
         sender.sendMessage("\u00a7aArtifacts config reloaded.");
         return true;
     }
@@ -119,7 +108,7 @@ public class ArtifactsCommand implements CommandExecutor, TabCompleter {
 
     private void sendHelp(CommandSender sender) {
         sender.sendMessage("\u00a76\u00a7lArtifacts Commands:");
-        sender.sendMessage("  \u00a7e/artifacts give <item_id> [player] \u00a77- Give an artifact");
+        sender.sendMessage("  \u00a7e/artifacts mimic \u00a77- Spawn a mimic chest at your location");
         sender.sendMessage("  \u00a7e/artifacts list \u00a77- List all artifacts");
         sender.sendMessage("  \u00a7e/artifacts reload \u00a77- Reload config");
     }
@@ -129,21 +118,9 @@ public class ArtifactsCommand implements CommandExecutor, TabCompleter {
         List<String> completions = new ArrayList<String>();
 
         if (args.length == 1) {
-            completions.add("give");
+            completions.add("mimic");
             completions.add("list");
             completions.add("reload");
-        } else if (args.length == 2 && args[0].equalsIgnoreCase("give")) {
-            for (ArtifactItem artifact : ArtifactItem.values()) {
-                if (artifact.getId().startsWith(args[1].toLowerCase())) {
-                    completions.add(artifact.getId());
-                }
-            }
-        } else if (args.length == 3 && args[0].equalsIgnoreCase("give")) {
-            for (Player player : plugin.getServer().getOnlinePlayers()) {
-                if (player.getName().toLowerCase().startsWith(args[2].toLowerCase())) {
-                    completions.add(player.getName());
-                }
-            }
         }
 
         return completions;

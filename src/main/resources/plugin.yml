@@ -11,7 +11,7 @@ commands:
     permission: artifacts.surprise
   artifacts:
     description: Manage artifact items
-    usage: /artifacts <give|list|reload>
+    usage: /artifacts <mimic|list|reload>
     permission: artifacts.admin
 
 permissions:

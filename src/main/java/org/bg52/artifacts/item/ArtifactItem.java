@@ -445,16 +445,18 @@ public enum ArtifactItem {
                         Arrays.asList("\u00a77Melee attacks have a chance to inflict a wither effect"));
 
         private final String id;
-        private final Material baseMaterial;
-        private final int customModelData;
-        private final String itemModelKey;
-        private final String displayName;
-        private final String slotType; // null = not a curio
-        private final List<String> lore;
+        private Material baseMaterial;
+        private int customModelData;
+        private String itemModelKey;
+        private String displayName;
+        private String slotType; // null = not a curio
+        private List<String> lore;
 
-        private final boolean has3DModel;
-        private final Float pitchUpLimit;
-        private final Float pitchDownLimit;
+        private boolean has3DModel;
+        private Float pitchUpLimit;
+        private Float pitchDownLimit;
+
+        private List<org.bg52.curiospaper.data.AbilityData> abilities = new java.util.ArrayList<>();
 
         ArtifactItem(String id, Material baseMaterial, int customModelData,
                         String itemModelKey, String displayName, String slotType,
@@ -492,8 +494,18 @@ public enum ArtifactItem {
                 return baseMaterial;
         }
 
+        public void setBaseMaterial(Material baseMaterial) {
+                if (baseMaterial != null) {
+                        this.baseMaterial = baseMaterial;
+                }
+        }
+
         public int getCustomModelData() {
                 return customModelData;
+        }
+
+        public void setCustomModelData(int customModelData) {
+                this.customModelData = customModelData;
         }
 
         /**
@@ -504,8 +516,18 @@ public enum ArtifactItem {
                 return itemModelKey;
         }
 
+        public void setItemModelKey(String itemModelKey) {
+                if (itemModelKey != null) {
+                        this.itemModelKey = itemModelKey;
+                }
+        }
+
         public boolean has3DModel() {
                 return has3DModel;
+        }
+
+        public void setHas3DModel(boolean has3DModel) {
+                this.has3DModel = has3DModel;
         }
 
         public int get3DCustomModelData() {
@@ -520,12 +542,26 @@ public enum ArtifactItem {
                 return pitchUpLimit;
         }
 
+        public void setPitchUpLimit(Float pitchUpLimit) {
+                this.pitchUpLimit = pitchUpLimit;
+        }
+
         public Float getPitchDownLimit() {
                 return pitchDownLimit;
         }
 
+        public void setPitchDownLimit(Float pitchDownLimit) {
+                this.pitchDownLimit = pitchDownLimit;
+        }
+
         public String getDisplayName() {
                 return displayName;
+        }
+
+        public void setDisplayName(String displayName) {
+                if (displayName != null) {
+                        this.displayName = displayName;
+                }
         }
 
         /**
@@ -535,12 +571,30 @@ public enum ArtifactItem {
                 return slotType;
         }
 
+        public void setSlotType(String slotType) {
+                this.slotType = (slotType != null && slotType.trim().isEmpty()) ? null : slotType;
+        }
+
         public List<String> getLore() {
                 return lore;
         }
 
+        public void setLore(List<String> lore) {
+                if (lore != null) {
+                        this.lore = lore;
+                }
+        }
+
+        public List<org.bg52.curiospaper.data.AbilityData> getAbilities() {
+                return abilities != null ? abilities : new java.util.ArrayList<>();
+        }
+
+        public void setAbilities(List<org.bg52.curiospaper.data.AbilityData> abilities) {
+                this.abilities = abilities != null ? new java.util.ArrayList<>(abilities) : new java.util.ArrayList<>();
+        }
+
         public boolean isCurio() {
-                return slotType != null;
+                return slotType != null && !slotType.trim().isEmpty();
         }
 
         /**
@@ -548,7 +602,7 @@ public enum ArtifactItem {
          */
         public static ArtifactItem fromId(String id) {
                 for (ArtifactItem item : values()) {
-                        if (item.id.equals(id)) {
+                        if (item.id.equalsIgnoreCase(id)) {
                                 return item;
                         }
                 }

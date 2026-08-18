@@ -164,22 +164,34 @@ public class PassiveEffectListener implements Listener {
         if (plugin.getArtifactConfig().isItemEnabled("night_vision_goggles")
                 && ArtifactUtil.hasEquipped(player, ArtifactItem.NIGHT_VISION_GOGGLES, api)) {
             applyNightVision(player);
+        } else {
+            removeEffect(player, PotionEffectType.NIGHT_VISION);
         }
+
         if (plugin.getArtifactConfig().isItemEnabled("scarf_of_invisibility")
                 && ArtifactUtil.hasEquipped(player, ArtifactItem.SCARF_OF_INVISIBILITY, api)) {
             applyInvisibility(player);
+        } else {
+            removeEffect(player, PotionEffectType.INVISIBILITY);
         }
+
         if (plugin.getArtifactConfig().isItemEnabled("bunny_hoppers")
                 && ArtifactUtil.hasEquipped(player, ArtifactItem.BUNNY_HOPPERS, api)) {
             applyBunnyHoppersJumpHeight(player);
+        } else {
+            removeEffect(player, PotionEffectType.JUMP);
         }
+
         if (plugin.getArtifactConfig().isItemEnabled("kitty_slippers")
                 && ArtifactUtil.hasEquipped(player, ArtifactItem.KITTY_SLIPPERS, api)) {
             // Deprecated: targeting is now intercepted by EntityTargetEvent below
         }
+
         if (plugin.getArtifactConfig().isItemEnabled("flippers")
                 && ArtifactUtil.hasEquipped(player, ArtifactItem.FLIPPERS, api)) {
             applyDolphinsGrace(player);
+        } else {
+            removeEffect(player, PotionEffectType.DOLPHINS_GRACE);
         }
     }
 

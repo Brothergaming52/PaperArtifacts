@@ -53,17 +53,20 @@ public class MimicEntity {
         NamespacedKey mimicKey = new NamespacedKey(plugin, "mimic");
 
         // ── Slime: hitbox + physics ──
-        slime = (Slime) location.getWorld().spawnEntity(location, EntityType.SLIME);
-        slime.setSize(SLIME_SIZE);
-        slime.setRemoveWhenFarAway(false);
-        slime.setSilent(true);
-        slime.setAI(false);
-        slime.setCustomName("Mimic");
-        slime.setCustomNameVisible(false);
+        slime = location.getWorld().spawn(location, Slime.class, entity -> {
+            entity.setSize(SLIME_SIZE);
+            entity.setRemoveWhenFarAway(false);
+            entity.setSilent(true);
+            entity.setAI(false);
+            entity.setCustomName("Mimic");
+            entity.setCustomNameVisible(false);
 
-        // Make slime invisible via potion effect (works on all versions)
-        slime.addPotionEffect(new PotionEffect(
-                PotionEffectType.INVISIBILITY, Integer.MAX_VALUE, 0, false, false));
+            // Make slime invisible via potion effect (works on all versions)
+            entity.addPotionEffect(new PotionEffect(
+                    PotionEffectType.INVISIBILITY, Integer.MAX_VALUE, 0, false, false));
+
+            entity.getPersistentDataContainer().set(mimicKey, PersistentDataType.BYTE, (byte) 1);
+        });
 
         // Set max health to 30 hearts (60 HP)
         Attribute maxHealthAttr = VersionUtil.getMaxHealthAttribute();
@@ -75,49 +78,48 @@ public class MimicEntity {
             }
         }
 
-        slime.getPersistentDataContainer().set(mimicKey, PersistentDataType.BYTE, (byte) 1);
-
         // ── Zombie: model display + natural player-facing ──
-        zombie = (Zombie) location.getWorld().spawnEntity(location, EntityType.ZOMBIE);
-        zombie.setSilent(true);
-        zombie.setAI(false); // Toggled by MimicAI alongside the slime
-        zombie.setInvulnerable(true);
-        zombie.setCanPickupItems(false);
-        zombie.setRemoveWhenFarAway(false);
-        zombie.setGravity(false); // Physics handled by the slime
-        zombie.setBaby(false); // Adult zombie
-        zombie.setCustomNameVisible(false);
+        zombie = location.getWorld().spawn(location, Zombie.class, entity -> {
+            entity.setSilent(true);
+            entity.setAI(false); // Toggled by MimicAI alongside the slime
+            entity.setInvulnerable(true);
+            entity.setCanPickupItems(false);
+            entity.setRemoveWhenFarAway(false);
+            entity.setGravity(false); // Physics handled by the slime
+            entity.setBaby(false); // Adult zombie
+            entity.setCustomNameVisible(false);
 
-        // Invisible body — only the helmet model item renders
-        zombie.addPotionEffect(new PotionEffect(
-                PotionEffectType.INVISIBILITY, Integer.MAX_VALUE, 0, false, false));
+            // Invisible body — only the helmet model item renders
+            entity.addPotionEffect(new PotionEffect(
+                    PotionEffectType.INVISIBILITY, Integer.MAX_VALUE, 0, false, false));
 
-        // Fire resistance — prevents burning in sunlight
-        zombie.addPotionEffect(new PotionEffect(
-                PotionEffectType.FIRE_RESISTANCE, Integer.MAX_VALUE, 0, false, false));
+            // Fire resistance — prevents burning in sunlight
+            entity.addPotionEffect(new PotionEffect(
+                    PotionEffectType.FIRE_RESISTANCE, Integer.MAX_VALUE, 0, false, false));
 
-        // Suppress fire ticks and visual fire immediately
-        zombie.setFireTicks(0);
+            // Suppress fire ticks and visual fire immediately
+            entity.setFireTicks(0);
 
-        // Clear ALL equipment slots to prevent random spawned items/armor
-        if (zombie.getEquipment() != null) {
-            zombie.getEquipment().setHelmet(null);
-            zombie.getEquipment().setChestplate(null);
-            zombie.getEquipment().setLeggings(null);
-            zombie.getEquipment().setBoots(null);
-            zombie.getEquipment().setItemInMainHand(new ItemStack(Material.AIR));
-            zombie.getEquipment().setItemInOffHand(new ItemStack(Material.AIR));
-            // Zero out all equipment drop chances
-            zombie.getEquipment().setHelmetDropChance(0f);
-            zombie.getEquipment().setChestplateDropChance(0f);
-            zombie.getEquipment().setLeggingsDropChance(0f);
-            zombie.getEquipment().setBootsDropChance(0f);
-            zombie.getEquipment().setItemInMainHandDropChance(0f);
-            zombie.getEquipment().setItemInOffHandDropChance(0f);
-        }
+            // Clear ALL equipment slots to prevent random spawned items/armor
+            if (entity.getEquipment() != null) {
+                entity.getEquipment().setHelmet(null);
+                entity.getEquipment().setChestplate(null);
+                entity.getEquipment().setLeggings(null);
+                entity.getEquipment().setBoots(null);
+                entity.getEquipment().setItemInMainHand(new ItemStack(Material.AIR));
+                entity.getEquipment().setItemInOffHand(new ItemStack(Material.AIR));
+                // Zero out all equipment drop chances
+                entity.getEquipment().setHelmetDropChance(0f);
+                entity.getEquipment().setChestplateDropChance(0f);
+                entity.getEquipment().setLeggingsDropChance(0f);
+                entity.getEquipment().setBootsDropChance(0f);
+                entity.getEquipment().setItemInMainHandDropChance(0f);
+                entity.getEquipment().setItemInOffHandDropChance(0f);
+            }
 
-        // Tag the zombie as mimic component
-        zombie.getPersistentDataContainer().set(mimicKey, PersistentDataType.BYTE, (byte) 1);
+            // Tag the zombie as mimic component
+            entity.getPersistentDataContainer().set(mimicKey, PersistentDataType.BYTE, (byte) 1);
+        });
 
         // Set initial model (dormant = chest appearance)
         forceSetModel(MimicModel.DORMANT);

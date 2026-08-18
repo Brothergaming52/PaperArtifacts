@@ -94,7 +94,7 @@ public class RunningShoesListener implements Listener {
         if (speedAttr != null) {
             AttributeInstance instance = player.getAttribute(speedAttr);
             if (instance != null) {
-                removeModifier(instance, SPEED_ID);
+                removeModifier(instance, SPEED_ID, "Running Shoes Speed");
                 double amount = config.getRunningShoesSpeedAmplifier();
                 AttributeModifier modifier = new AttributeModifier(
                         SPEED_ID,
@@ -110,7 +110,7 @@ public class RunningShoesListener implements Listener {
         if (stepAttr != null) {
             AttributeInstance instance = player.getAttribute(stepAttr);
             if (instance != null) {
-                removeModifier(instance, STEP_ID);
+                removeModifier(instance, STEP_ID, "Running Shoes Step Height");
                 double amount = config.getRunningShoesStepHeightAmplifier();
                 AttributeModifier modifier = new AttributeModifier(
                         STEP_ID,
@@ -126,19 +126,19 @@ public class RunningShoesListener implements Listener {
         Attribute speedAttr = VersionUtil.getMovementSpeedAttribute();
         if (speedAttr != null) {
             AttributeInstance instance = player.getAttribute(speedAttr);
-            if (instance != null) removeModifier(instance, SPEED_ID);
+            if (instance != null) removeModifier(instance, SPEED_ID, "Running Shoes Speed");
         }
 
         Attribute stepAttr = VersionUtil.getStepHeightAttribute();
         if (stepAttr != null) {
             AttributeInstance instance = player.getAttribute(stepAttr);
-            if (instance != null) removeModifier(instance, STEP_ID);
+            if (instance != null) removeModifier(instance, STEP_ID, "Running Shoes Step Height");
         }
     }
 
-    private void removeModifier(AttributeInstance instance, UUID id) {
+    private void removeModifier(AttributeInstance instance, UUID id, String name) {
         for (AttributeModifier modifier : new ArrayList<>(instance.getModifiers())) {
-            if (modifier.getUniqueId().equals(id)) {
+            if (modifier.getUniqueId().equals(id) || (name != null && name.equalsIgnoreCase(modifier.getName()))) {
                 instance.removeModifier(modifier);
             }
         }

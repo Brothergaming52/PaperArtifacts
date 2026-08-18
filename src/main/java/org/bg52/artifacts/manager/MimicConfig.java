@@ -51,6 +51,10 @@ public class MimicConfig {
         plugin.getLogger().info("[Artifacts] Loaded " + count + " enabled mimic drops.");
     }
 
+    public void reload() {
+        load();
+    }
+
     /**
      * Checks if a specific artifact item is enabled for mimic drops.
      * 

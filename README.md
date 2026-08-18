@@ -38,6 +38,15 @@ Every item is fully configurable, has a custom resource pack model, and works ou
 
 ---
 
+## 🚀 What's New in v1.2
+
+- 🕊️ **Modern Double Jump Engine:** Double jumping with the *Cloud in a Bottle* now utilizes modern input-packet events on Paper servers for unmatched responsiveness, preventing conflicts with creative flight or client mods.
+- 🛡️ **Lucky Scarf Anti-Exploit:** Implemented block placement tracking via metadata, preventing duplication exploits. The +1 Fortune bonus now correctly applies strictly to natural ore blocks.
+- 💾 **Database-Backed Mimics:** Mimic chest locations are now stored asynchronously via CuriosPaper's Storage API (supporting SQLite, MySQL, and MongoDB) for reliable cross-restart persistence.
+- 🌐 **GeyserMC & Bedrock Support:** Fully integrated automatic bedrock pack extraction and custom mappings injection.
+
+---
+
 ## ⚡ Key Features
 
 - ⚔️ **45+ artifacts** across head, necklace, belt, hands, and feet slots
@@ -171,7 +180,7 @@ Chests can also be **trapped** with TNT underneath. Exploration is rewarding —
 
 | Command | Description | Permission |
 |---|---|---|
-| `/artifacts give <item> [player]` | Give an artifact | `artifacts.admin` |
+| `/artifacts mimic` | Spawn a mimic chest at your location | `artifacts.admin` |
 | `/artifacts list` | List all artifacts | `artifacts.admin` |
 | `/artifacts reload` | Reload config | `artifacts.admin` |
 

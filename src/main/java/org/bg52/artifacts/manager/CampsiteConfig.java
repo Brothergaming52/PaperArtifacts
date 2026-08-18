@@ -41,22 +41,58 @@ public class CampsiteConfig {
         }
         config = YamlConfiguration.loadConfiguration(configFile);
 
-        count = config.getInt("campsite.count", 10);
-        minY = config.getInt("campsite.min-y", -60);
-        maxY = config.getInt("campsite.max-y", 40);
-        mimicChance = config.getDouble("campsite.mimic-chance", 0.3);
-        trappedChestChance = config.getDouble("campsite.trapped-chest-chance", 0.125);
-        chestLootChance = config.getDouble("campsite.chest-loot-chance", 1.0);
-        barrelLootChance = config.getDouble("campsite.barrel-loot-chance", 0.5);
-        allowLightSources = config.getBoolean("campsite.allow-light-sources", true);
-        minimalistCampsites = config.getBoolean("campsite.minimalist-campsites", false);
-        maxCeilingHeight = config.getInt("campsite.max-ceiling-height", 6);
+        // Load count from Campsite.yml
+        count = config.getInt("campsite.count", config.getInt("count", 10));
+        boolean campsiteEnabled = config.getBoolean("campsite.enabled", config.getBoolean("enabled", true));
+        if (!campsiteEnabled) {
+            count = 0;
+        }
+
+        // Also check if configured in main config.yml (e.g. campsite: 0, campsite.count: 0, campsite.enabled: false)
+        FileConfiguration mainConfig = plugin.getConfig();
+        if (mainConfig != null) {
+            if (mainConfig.contains("campsite.enabled") && !mainConfig.getBoolean("campsite.enabled")) {
+                count = 0;
+            } else if (mainConfig.contains("campsites.enabled") && !mainConfig.getBoolean("campsites.enabled")) {
+                count = 0;
+            } else if (mainConfig.contains("campsite.count")) {
+                count = mainConfig.getInt("campsite.count");
+            } else if (mainConfig.contains("campsites.count")) {
+                count = mainConfig.getInt("campsites.count");
+            } else if (mainConfig.isBoolean("campsite") && !mainConfig.getBoolean("campsite")) {
+                count = 0;
+            } else if (mainConfig.isInt("campsite")) {
+                count = mainConfig.getInt("campsite");
+            } else if (mainConfig.isBoolean("campsites") && !mainConfig.getBoolean("campsites")) {
+                count = 0;
+            } else if (mainConfig.isInt("campsites")) {
+                count = mainConfig.getInt("campsites");
+            }
+        }
+
+        if (count < 0) {
+            count = 0;
+        }
+
+        minY = config.getInt("campsite.min-y", config.getInt("min-y", -60));
+        maxY = config.getInt("campsite.max-y", config.getInt("max-y", 40));
+        mimicChance = config.getDouble("campsite.mimic-chance", config.getDouble("mimic-chance", 0.3));
+        trappedChestChance = config.getDouble("campsite.trapped-chest-chance", config.getDouble("trapped-chest-chance", 0.125));
+        chestLootChance = config.getDouble("campsite.chest-loot-chance", config.getDouble("chest-loot-chance", 1.0));
+        barrelLootChance = config.getDouble("campsite.barrel-loot-chance", config.getDouble("barrel-loot-chance", 0.5));
+        allowLightSources = config.getBoolean("campsite.allow-light-sources", config.getBoolean("allow-light-sources", true));
+        minimalistCampsites = config.getBoolean("campsite.minimalist-campsites", config.getBoolean("minimalist-campsites", false));
+        maxCeilingHeight = config.getInt("campsite.max-ceiling-height", config.getInt("max-ceiling-height", 6));
 
         // Load enabled worlds
         enabledWorlds.clear();
         if (config.contains("campsite.worlds")) {
             for (String worldName : config.getConfigurationSection("campsite.worlds").getKeys(false)) {
                 enabledWorlds.put(worldName, config.getBoolean("campsite.worlds." + worldName));
+            }
+        } else if (config.contains("worlds")) {
+            for (String worldName : config.getConfigurationSection("worlds").getKeys(false)) {
+                enabledWorlds.put(worldName, config.getBoolean("worlds." + worldName));
             }
         }
 

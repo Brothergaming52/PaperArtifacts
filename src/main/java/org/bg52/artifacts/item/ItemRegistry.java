@@ -45,6 +45,11 @@ public class ItemRegistry {
         int created = 0;
         int skipped = 0;
 
+        // Ensure artifacts.yml is loaded before registering
+        if (plugin.getArtifactItemsConfig() != null) {
+            plugin.getArtifactItemsConfig().load();
+        }
+
         java.util.Map<String, List<org.bg52.curiospaper.data.LootTableData>> lootTables = ArtifactLootTables
                 .getLootTables(plugin);
 
@@ -55,11 +60,19 @@ public class ItemRegistry {
             // Check if disabled in config
             if (!plugin.getArtifactConfig().isItemEnabled(artifact.getId())) {
                 logger.info("Skipping disabled item: " + artifact.getId());
+                try {
+                    api.deleteItem(artifact.getId());
+                } catch (Exception ignored) {
+                }
                 skipped++;
                 continue;
             }
 
             if (artifact == ArtifactItem.CHARM_OF_SHRINKING && !VersionUtil.isAtLeast(1, 20, 5)) {
+                try {
+                    api.deleteItem(artifact.getId());
+                } catch (Exception ignored) {
+                }
                 skipped++;
                 logger.info("Skipping Charm of Shrinking: Not supported on this Minecraft version");
                 continue;
@@ -67,40 +80,45 @@ public class ItemRegistry {
 
             // Create the item in CuriosPaper's data system if it doesn't already exist
             org.bg52.curiospaper.data.ItemData itemData = api.getItemData(artifact.getId());
+            boolean isNew = false;
             if (itemData == null) {
                 itemData = api.createItem(plugin, artifact.getId());
                 if (itemData == null) {
                     logger.warning("Failed to create item: " + artifact.getId());
                     continue;
                 }
+                isNew = true;
+            }
 
-                itemData.setDisplayName(artifact.getDisplayName());
-                itemData.setMaterial(artifact.getBaseMaterial().name());
-                itemData.setCustomModelData(artifact.getCustomModelData());
-                itemData.setItemModel("artifacts:" + artifact.getItemModelKey());
-                itemData.setLore(artifact.getLore());
+            // Sync all customized fields (display name, material, custom model data, item model, lore, slot type, abilities)
+            itemData.setDisplayName(artifact.getDisplayName());
+            itemData.setMaterial(artifact.getBaseMaterial().name());
+            itemData.setCustomModelData(artifact.getCustomModelData());
+            itemData.setItemModel("artifacts:" + artifact.getItemModelKey());
+            itemData.setLore(artifact.getLore());
+            itemData.setSlotType(artifact.getSlotType());
+            itemData.setAbilities(artifact.getAbilities());
 
-                if (artifact.getSlotType() != null) {
-                    itemData.setSlotType(artifact.getSlotType());
-                }
+            // Always update loot tables and mob drops so config edits take effect immediately
+            if (lootTables.containsKey(artifact.getId())) {
+                itemData.setLootTables(lootTables.get(artifact.getId()));
+            } else {
+                itemData.setLootTables(new ArrayList<>());
+            }
 
-                if (lootTables.containsKey(artifact.getId())) {
-                    for (org.bg52.curiospaper.data.LootTableData lootTable : lootTables.get(artifact.getId())) {
-                        api.registerItemLootTable(artifact.getId(), lootTable);
-                    }
-                }
+            if (mobDrops.containsKey(artifact.getId())) {
+                itemData.setMobDrops(mobDrops.get(artifact.getId()));
+            } else {
+                itemData.setMobDrops(new ArrayList<>());
+            }
 
-                if (mobDrops.containsKey(artifact.getId())) {
-                    for (org.bg52.curiospaper.data.MobDropData mobDrop : mobDrops.get(artifact.getId())) {
-                        api.registerItemMobDrop(artifact.getId(), mobDrop);
-                    }
-                }
-
-                api.saveItemData(artifact.getId());
+            if (isNew) {
                 created++;
             } else {
                 skipped++;
             }
+
+            api.saveItemData(artifact.getId());
 
             // Always ensure 3D model configuration is up-to-date
             if (artifact.has3DModel()) {
@@ -143,11 +161,9 @@ public class ItemRegistry {
                 campfireRecipe.setExperience(0.35f);
                 api.registerItemRecipe(artifact.getId(), campfireRecipe);
             }
-
-            created++;
         }
 
-        logger.info("Item registration complete: " + created + " created, " + skipped + " skipped.");
+        logger.info("Item registration complete: " + created + " created, " + skipped + " updated/skipped.");
     }
 
     /**

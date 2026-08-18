@@ -51,6 +51,7 @@ public class PassiveArtifactsListener implements Listener {
     private static final UUID DIGGING_CLAWS_ID = UUID.fromString("d3b1a2c3-d4e5-4f60-8a1a-1b2c3d4e5f6a");
     private static final UUID STEADFAST_SPIKES_ID = UUID.fromString("b1a2c3d4-e5f6-4a7b-8c9d-1e1f1a2b3c4d");
     private static final UUID CHARM_OF_SHRINKING_ID = UUID.fromString("c1a2c3d4-e5f6-4a7b-8c9d-1e1f1a2b3c4f");
+    private static final UUID CRYSTAL_HEART_ID = UUID.fromString("a1b2c3d4-e5f6-4a7b-8c9d-1e1f1a2b3c4e");
     private final java.util.Set<UUID> warpDriveNoDamage = new java.util.HashSet<>();
 
     private final Artifacts plugin;
@@ -220,7 +221,8 @@ public class PassiveArtifactsListener implements Listener {
 
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
-        // Ensure attribute is correct on login (some versions reset it)
+        // Ensure attributes are correct on login
+        updateCrystalHeartHealth(event.getPlayer());
         updateFeralClawsAttackSpeed(event.getPlayer());
         updatePowerGloveAttackDamage(event.getPlayer());
         updateDiggingClawsSpeed(event.getPlayer());
@@ -230,45 +232,55 @@ public class PassiveArtifactsListener implements Listener {
     }
 
     /**
-     * Apply health boost from Crystal Heart
+     * Apply health boost from Crystal Heart using non-destructive AttributeModifier
      */
     private void updateCrystalHeartHealth(Player player) {
-        // FIX 3: Use your VersionUtil to prevent cross-version attribute crashes
+        if (plugin.getArtifactConfig().isItemEnabled("crystal_heart") &&
+                ArtifactUtil.hasEquipped(player, ArtifactItem.CRYSTAL_HEART, api)) {
+            applyCrystalHeartHealth(player);
+        } else {
+            removeCrystalHeartHealth(player);
+        }
+    }
+
+    private void applyCrystalHeartHealth(Player player) {
         Attribute maxHealthAttr = VersionUtil.getMaxHealthAttribute();
         if (maxHealthAttr == null)
             return;
 
-        // If the item is disabled or they don't have it equipped, remove the health
-        if (!plugin.getArtifactConfig().isItemEnabled("crystal_heart") ||
-                !ArtifactUtil.hasEquipped(player, ArtifactItem.CRYSTAL_HEART, api)) {
-
-            removeCrystalHeartHealth(player);
+        AttributeInstance instance = player.getAttribute(maxHealthAttr);
+        if (instance == null)
             return;
-        }
+
+        removeCrystalHeartHealth(player);
 
         int bonusHealth = plugin.getArtifactConfig().getCrystalHeartBonusHealth() * 2;
-        double currentMaxHealth = player.getAttribute(maxHealthAttr).getBaseValue();
-
-        // Only apply if not already applied
-        if (currentMaxHealth < (20.0 + bonusHealth)) {
-            player.getAttribute(maxHealthAttr).setBaseValue(20.0 + bonusHealth);
-        }
+        AttributeModifier modifier = new AttributeModifier(
+                CRYSTAL_HEART_ID,
+                "Crystal Heart Health",
+                bonusHealth,
+                AttributeModifier.Operation.ADD_NUMBER);
+        instance.addModifier(modifier);
     }
 
-    /**
-     * Remove health boost from Crystal Heart
-     */
     private void removeCrystalHeartHealth(Player player) {
         Attribute maxHealthAttr = VersionUtil.getMaxHealthAttribute();
         if (maxHealthAttr == null)
             return;
 
-        double currentMaxHealth = player.getAttribute(maxHealthAttr).getBaseValue();
-        double baseHealth = 20.0;
+        AttributeInstance instance = player.getAttribute(maxHealthAttr);
+        if (instance == null)
+            return;
 
-        // Only remove if health is above base
-        if (currentMaxHealth > baseHealth) {
-            player.getAttribute(maxHealthAttr).setBaseValue(baseHealth);
+        for (AttributeModifier modifier : new ArrayList<>(instance.getModifiers())) {
+            if (modifier.getUniqueId().equals(CRYSTAL_HEART_ID) || "Crystal Heart Health".equalsIgnoreCase(modifier.getName())) {
+                instance.removeModifier(modifier);
+            }
+        }
+
+        // Clamp health if it exceeds max value after removing boost
+        if (player.getHealth() > instance.getValue()) {
+            player.setHealth(Math.max(1.0, instance.getValue()));
         }
     }
 
@@ -400,8 +412,15 @@ public class PassiveArtifactsListener implements Listener {
         return true;
     }
 
-    @EventHandler
+    public void reload() {
+        initSmeltingMap();
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBlockBreak(BlockBreakEvent event) {
+        if (event.isCancelled())
+            return;
+
         Player player = event.getPlayer();
         if (ArtifactUtil.hasEquipped(player, ArtifactItem.DIGGING_CLAWS, api)) {
             Block block = event.getBlock();
@@ -431,21 +450,53 @@ public class PassiveArtifactsListener implements Listener {
                     finalDrops.add(new ItemStack(smelted, drop.getAmount()));
                     smeltedAny = true;
                 } else {
-                    finalDrops.add(drop);
+                    finalDrops.add(drop.clone());
                 }
             }
 
             if (smeltedAny) {
                 event.setDropItems(false);
-                Location loc = block.getLocation().add(0.5, 0.5, 0.5);
-                for (ItemStack item : finalDrops) {
-                    block.getWorld().dropItemNaturally(loc, item);
-                }
+                Location loc = block.getLocation().clone();
+                Material originalType = block.getType();
+                boolean wasWaterlogged = false;
                 try {
-                    block.getWorld().spawnParticle(org.bukkit.Particle.FLAME, loc, 5, 0.2, 0.2, 0.2, 0.05);
+                    if (block.getBlockData() instanceof org.bukkit.block.data.Waterlogged) {
+                        wasWaterlogged = ((org.bukkit.block.data.Waterlogged) block.getBlockData()).isWaterlogged();
+                    }
                 } catch (Throwable ignored) {
                 }
-                block.getWorld().playSound(loc, Sound.BLOCK_FIRE_EXTINGUISH, 0.5f, 1.5f);
+
+                final boolean finalWasWaterlogged = wasWaterlogged;
+                Bukkit.getScheduler().runTask(plugin, () -> {
+                    World world = loc.getWorld();
+                    if (world == null)
+                        return;
+
+                    Block currentBlock = loc.getBlock();
+                    Material currentType = currentBlock.getType();
+
+                    // Verify that the block was actually broken and not restored by a protection/rollback plugin (e.g. WorldGuard, Towny)
+                    if (currentType == originalType) {
+                        return;
+                    }
+
+                    boolean isBroken = currentType.isAir() || (finalWasWaterlogged && currentType == Material.WATER);
+                    if (!isBroken) {
+                        return;
+                    }
+
+                    Location dropLoc = loc.clone().add(0.5, 0.5, 0.5);
+                    for (ItemStack item : finalDrops) {
+                        if (item != null && item.getType() != Material.AIR && item.getAmount() > 0) {
+                            world.dropItemNaturally(dropLoc, item);
+                        }
+                    }
+                    try {
+                        world.spawnParticle(org.bukkit.Particle.FLAME, dropLoc, 5, 0.2, 0.2, 0.2, 0.05);
+                    } catch (Throwable ignored) {
+                    }
+                    world.playSound(dropLoc, Sound.BLOCK_FIRE_EXTINGUISH, 0.5f, 1.5f);
+                });
             }
         }
     }
@@ -473,8 +524,9 @@ public class PassiveArtifactsListener implements Listener {
 
         removeCharmOfShrinkingScale(player);
 
-        AttributeModifier modifier = new AttributeModifier(CHARM_OF_SHRINKING_ID, "Charm of Shrinking Scale", -0.5,
-                AttributeModifier.Operation.ADD_SCALAR);
+        double amount = plugin.getArtifactConfig().getCharmOfShrinkingScaleModifier();
+        AttributeModifier.Operation op = plugin.getArtifactConfig().getCharmOfShrinkingScaleOperation();
+        AttributeModifier modifier = new AttributeModifier(CHARM_OF_SHRINKING_ID, "Charm of Shrinking Scale", amount, op);
         instance.addModifier(modifier);
     }
 
@@ -487,7 +539,7 @@ public class PassiveArtifactsListener implements Listener {
             return;
 
         for (AttributeModifier modifier : new java.util.ArrayList<>(instance.getModifiers())) {
-            if (modifier.getUniqueId().equals(CHARM_OF_SHRINKING_ID)) {
+            if (modifier.getUniqueId().equals(CHARM_OF_SHRINKING_ID) || "Charm of Shrinking Scale".equalsIgnoreCase(modifier.getName())) {
                 instance.removeModifier(modifier);
             }
         }
@@ -549,6 +601,7 @@ public class PassiveArtifactsListener implements Listener {
 
     public void shutdown() {
         for (Player player : Bukkit.getOnlinePlayers()) {
+            removeCrystalHeartHealth(player);
             removeFeralClawsAttackSpeed(player);
             removePowerGloveAttackDamage(player);
             removeDiggingClawsSpeed(player);
@@ -599,7 +652,7 @@ public class PassiveArtifactsListener implements Listener {
 
         // Safely remove only our specific modifier
         for (AttributeModifier modifier : new ArrayList<>(instance.getModifiers())) {
-            if (modifier.getUniqueId().equals(FERAL_CLAWS_ID)) {
+            if (modifier.getUniqueId().equals(FERAL_CLAWS_ID) || "Feral Claws Attack Speed".equalsIgnoreCase(modifier.getName())) {
                 instance.removeModifier(modifier);
             }
         }
@@ -647,7 +700,7 @@ public class PassiveArtifactsListener implements Listener {
 
         // Safely remove only our specific modifier
         for (AttributeModifier modifier : new ArrayList<>(instance.getModifiers())) {
-            if (modifier.getUniqueId().equals(POWER_GLOVE_ID)) {
+            if (modifier.getUniqueId().equals(POWER_GLOVE_ID) || "Power Glove Attack Damage".equalsIgnoreCase(modifier.getName())) {
                 instance.removeModifier(modifier);
             }
         }
@@ -703,7 +756,7 @@ public class PassiveArtifactsListener implements Listener {
             AttributeInstance instance = player.getAttribute(speedAttr);
             if (instance != null) {
                 for (AttributeModifier modifier : new ArrayList<>(instance.getModifiers())) {
-                    if (modifier.getUniqueId().equals(DIGGING_CLAWS_ID)) {
+                    if (modifier.getUniqueId().equals(DIGGING_CLAWS_ID) || "Digging Claws Mining Speed".equalsIgnoreCase(modifier.getName())) {
                         instance.removeModifier(modifier);
                     }
                 }
@@ -724,9 +777,13 @@ public class PassiveArtifactsListener implements Listener {
         }
     }
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onFireGauntletHit(EntityDamageByEntityEvent event) {
+        if (event.isCancelled())
+            return;
         if (!(event.getDamager() instanceof Player))
+            return;
+        if (!(event.getEntity() instanceof LivingEntity))
             return;
 
         Player player = (Player) event.getDamager();
@@ -792,8 +849,9 @@ public class PassiveArtifactsListener implements Listener {
             int OriginalExp = event.getDroppedExp();
             if (OriginalExp == 0)
                 return;
-            int BonusExp = (int) Math.round(OriginalExp * plugin.getArtifactConfig().getGoldenHookExpBonus());
-            event.setDroppedExp(OriginalExp + BonusExp);
+            double bonusPercent = plugin.getArtifactConfig().getGoldenHookExpBonus();
+            int bonusExp = (int) Math.round(OriginalExp * bonusPercent);
+            event.setDroppedExp(OriginalExp + bonusExp);
         }
     }
 
@@ -834,7 +892,6 @@ public class PassiveArtifactsListener implements Listener {
             applySteadfastSpikesKnockback(player);
         } else {
             removeSteadfastSpikesKnockback(player);
-            removeCharmOfShrinkingScale(player);
         }
     }
 
@@ -868,7 +925,7 @@ public class PassiveArtifactsListener implements Listener {
             return;
 
         for (AttributeModifier modifier : new ArrayList<>(instance.getModifiers())) {
-            if (modifier.getUniqueId().equals(STEADFAST_SPIKES_ID)) {
+            if (modifier.getUniqueId().equals(STEADFAST_SPIKES_ID) || "Steadfast Spikes Knockback Resistance".equalsIgnoreCase(modifier.getName())) {
                 instance.removeModifier(modifier);
             }
         }

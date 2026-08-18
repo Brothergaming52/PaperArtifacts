@@ -11,6 +11,42 @@
     ],
     "minecraft:carrot_on_a_stick": [
       {
+        "name": "artifacts_mimic_attacked_dormant",
+        "allow_offhand": true,
+        "icon": "artifacts_mimic_dormant",
+        "custom_model_data": 201001
+      },
+      {
+        "name": "artifacts_mimic_attacked_hurt",
+        "allow_offhand": true,
+        "icon": "artifacts_mimic_hurt",
+        "custom_model_data": 201002
+      },
+      {
+        "name": "artifacts_mimic_attacked_jumping",
+        "allow_offhand": true,
+        "icon": "artifacts_mimic_jumping",
+        "custom_model_data": 201003
+      },
+      {
+        "name": "artifacts_mimic_dormant",
+        "allow_offhand": true,
+        "icon": "artifacts_mimic_dormant",
+        "custom_model_data": 201004
+      },
+      {
+        "name": "artifacts_mimic_hurt",
+        "allow_offhand": true,
+        "icon": "artifacts_mimic_hurt",
+        "custom_model_data": 201005
+      },
+      {
+        "name": "artifacts_mimic_jumping",
+        "allow_offhand": true,
+        "icon": "artifacts_mimic_jumping",
+        "custom_model_data": 201006
+      },
+      {
         "name": "artifacts_snorkel",
         "allow_offhand": true,
         "icon": "artifacts_snorkel",

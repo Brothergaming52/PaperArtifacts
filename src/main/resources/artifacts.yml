@@ -1,0 +1,587 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+#  Artifacts Items & Custom Abilities Configuration
+#
+#  Customize any artifact item: display name, base material, custom model data,
+#  item model key, curio slot type, lore, 3D model options, and extra abilities.
+#
+#  Abilities use CuriosPaper's built-in ability system.
+#  Triggers:
+#    - WHILE_EQUIPPED : Active continuously while equipped in a curio slot
+#    - EQUIP          : Triggers once when equipped
+#    - DE_EQUIP        : Triggers once when removed
+#
+#  Effect Types:
+#    - POTION_EFFECT   : Applies Bukkit PotionEffect (e.g. SPEED, REGENERATION, NIGHT_VISION)
+#    - PLAYER_MODIFIER : Applies Bukkit AttributeModifier (e.g. GENERIC_MAX_HEALTH, GENERIC_ATTACK_DAMAGE)
+#                        Note: For PLAYER_MODIFIER, amplifier is stored as (value * 100).
+#                        Example: amplifier 400 = +4.0 max health (+2 hearts).
+#                        Operations: ADD_NUMBER (default), ADD_SCALAR, MULTIPLY_SCALAR_1
+#
+#  Example custom ability setup:
+#    abilities:
+#      speed_buff:
+#        trigger: WHILE_EQUIPPED
+#        effect-type: POTION_EFFECT
+#        effect-name: SPEED
+#        amplifier: 0
+#        duration: 100
+#      extra_health:
+#        trigger: WHILE_EQUIPPED
+#        effect-type: PLAYER_MODIFIER
+#        effect-name: GENERIC_MAX_HEALTH
+#        amplifier: 400
+#        operation: ADD_NUMBER
+# ═══════════════════════════════════════════════════════════════════════════════
+
+umbrella:
+  name: "&bUmbrella"
+  material: "SHIELD"
+  custom-model-data: 201010
+  item-model: "umbrella"
+  slot-type: ""
+  lore:
+    - "&7Slows your fall when held"
+    - "&7Can be used as a shield"
+  has-3d-model: false
+  abilities: {}
+  # Example commented ability configuration:
+  # abilities:
+  #   slow_fall_buff:
+  #     trigger: WHILE_EQUIPPED
+  #     effect-type: POTION_EFFECT
+  #     effect-name: SLOW_FALLING
+  #     amplifier: 0
+  #     duration: 100
+
+everlasting_beef:
+  name: "&bEverlasting Beef"
+  material: "BEEF"
+  custom-model-data: 201011
+  item-model: "everlasting_beef"
+  slot-type: ""
+  lore:
+    - "&7Not consumed when eaten"
+  has-3d-model: false
+  abilities: {}
+
+eternal_steak:
+  name: "&bEternal Steak"
+  material: "COOKED_BEEF"
+  custom-model-data: 201012
+  item-model: "eternal_steak"
+  slot-type: ""
+  lore:
+    - "&7Not consumed when eaten"
+  has-3d-model: false
+  abilities: {}
+
+snorkel:
+  name: "&bSnorkel"
+  material: "CARROT_ON_A_STICK"
+  custom-model-data: 201013
+  item-model: "snorkel"
+  slot-type: "head"
+  lore:
+    - "&7Allows the wearer to breathe underwater for a limited amount of time"
+  has-3d-model: false
+  abilities: {}
+
+villager_hat:
+  name: "&bVillager Hat"
+  material: "CARROT_ON_A_STICK"
+  custom-model-data: 201014
+  item-model: "villager_hat"
+  slot-type: "head"
+  lore:
+    - "&7Decreases the trading prices of villagers"
+  has-3d-model: false
+  abilities: {}
+
+superstitious_hat:
+  name: "&bSuperstitious Hat"
+  material: "CARROT_ON_A_STICK"
+  custom-model-data: 201015
+  item-model: "superstitious_hat"
+  slot-type: "head"
+  lore:
+    - "&7Applies an extra level of looting to killed entities"
+  has-3d-model: false
+  abilities: {}
+
+cowboy_hat:
+  name: "&bCowboy Hat"
+  material: "CARROT_ON_A_STICK"
+  custom-model-data: 201016
+  item-model: "cowboy_hat"
+  slot-type: "head"
+  lore:
+    - "&7Increases the speed of ridden mounts"
+  has-3d-model: false
+  abilities: {}
+
+lucky_scarf:
+  name: "&bLucky Scarf"
+  material: "CARROT_ON_A_STICK"
+  custom-model-data: 201017
+  item-model: "lucky_scarf"
+  slot-type: "necklace"
+  lore:
+    - "&7Applies an extra level of fortune to mined blocks"
+  has-3d-model: true
+  pitch-down-limit: 15.0
+  abilities: {}
+
+cross_necklace:
+  name: "&bCross Necklace"
+  material: "CARROT_ON_A_STICK"
+  custom-model-data: 201018
+  item-model: "cross_necklace"
+  slot-type: "necklace"
+  lore:
+    - "&7Increases the length of invincibility after taking damage"
+  has-3d-model: true
+  pitch-down-limit: 30.0
+  abilities: {}
+
+panic_necklace:
+  name: "&bPanic Necklace"
+  material: "CARROT_ON_A_STICK"
+  custom-model-data: 201019
+  item-model: "panic_necklace"
+  slot-type: "necklace"
+  lore:
+    - "&7Increases the wearer's movement speed after taking damage"
+  has-3d-model: true
+  pitch-down-limit: 30.0
+  abilities: {}
+
+shock_pendant:
+  name: "&bShock Pendant"
+  material: "CARROT_ON_A_STICK"
+  custom-model-data: 201020
+  item-model: "shock_pendant"
+  slot-type: "necklace"
+  lore:
+    - "&7Has a chance to strike attackers with lightning"
+    - "&7Grants protection against lightning strikes"
+  has-3d-model: true
+  abilities: {}
+
+flame_pendant:
+  name: "&bFlame Pendant"
+  material: "CARROT_ON_A_STICK"
+  custom-model-data: 201021
+  item-model: "flame_pendant"
+  slot-type: "necklace"
+  lore:
+    - "&7Has a chance to light attackers on fire"
+    - "&7Grants fire resistance after lighting an attacker on fire"
+  has-3d-model: true
+  abilities: {}
+
+plastic_drinking_hat:
+  name: "&bPlastic Drinking Hat"
+  material: "CARROT_ON_A_STICK"
+  custom-model-data: 201022
+  item-model: "plastic_drinking_hat"
+  slot-type: "head"
+  lore:
+    - "&7Decreases the time it takes to drink items"
+    - "&7Decreases the time it takes to eat items"
+  has-3d-model: false
+  abilities: {}
+
+novelty_drinking_hat:
+  name: "&dNovelty Drinking Hat"
+  material: "CARROT_ON_A_STICK"
+  custom-model-data: 201023
+  item-model: "novelty_drinking_hat"
+  slot-type: "head"
+  lore:
+    - "&7&o'Hey! I'm #1, and I let gravity do my drinking!'"
+    - "&7Decreases the time it takes to drink items"
+    - "&7Decreases the time it takes to eat items"
+  has-3d-model: false
+  abilities: {}
+
+night_vision_goggles:
+  name: "&bNight Vision Goggles"
+  material: "CARROT_ON_A_STICK"
+  custom-model-data: 201024
+  item-model: "night_vision_goggles"
+  slot-type: "head"
+  lore:
+    - "&7Allows the wearer to see in the dark"
+  has-3d-model: false
+  abilities: {}
+
+anglers_hat:
+  name: "&bAngler's Hat"
+  material: "CARROT_ON_A_STICK"
+  custom-model-data: 201025
+  item-model: "anglers_hat"
+  slot-type: "head"
+  lore:
+    - "&7Applies an extra level of Luck of the Sea when fishing"
+    - "&7Applies an extra level of Lure when fishing"
+  has-3d-model: false
+  abilities: {}
+
+scarf_of_invisibility:
+  name: "&bScarf of Invisibility"
+  material: "CARROT_ON_A_STICK"
+  custom-model-data: 201026
+  item-model: "scarf_of_invisibility"
+  slot-type: "necklace"
+  lore:
+    - "&7Turns the wearer invisible"
+  has-3d-model: true
+  pitch-down-limit: 15.0
+  abilities: {}
+
+thorn_pendant:
+  name: "&bThorn Pendant"
+  material: "CARROT_ON_A_STICK"
+  custom-model-data: 201027
+  item-model: "thorn_pendant"
+  slot-type: "necklace"
+  lore:
+    - "&7Has a chance to damage attackers"
+  has-3d-model: true
+  pitch-down-limit: 30.0
+  abilities: {}
+
+charm_of_sinking:
+  name: "&bCharm of Sinking"
+  material: "CARROT_ON_A_STICK"
+  custom-model-data: 201028
+  item-model: "charm_of_sinking"
+  slot-type: "necklace"
+  lore:
+    - "&7Allows the wearer to move freely in water"
+  has-3d-model: true
+  pitch-down-limit: 30.0
+  abilities: {}
+
+cloud_in_a_bottle:
+  name: "&bCloud in a Bottle"
+  material: "CARROT_ON_A_STICK"
+  custom-model-data: 201029
+  item-model: "cloud_in_a_bottle"
+  slot-type: "belt"
+  lore:
+    - "&7Allows the wearer to double jump"
+  has-3d-model: true
+  pitch-down-limit: 50.0
+  abilities: {}
+
+obsidian_skull:
+  name: "&bObsidian Skull"
+  material: "CARROT_ON_A_STICK"
+  custom-model-data: 201030
+  item-model: "obsidian_skull"
+  slot-type: "belt"
+  lore:
+    - "&7The wearer becomes temporarily immune to fire damage when hurt by fire"
+  has-3d-model: true
+  pitch-down-limit: 50.0
+  abilities: {}
+
+antidote_vessel:
+  name: "&bAntidote Vessel"
+  material: "CARROT_ON_A_STICK"
+  custom-model-data: 201031
+  item-model: "antidote_vessel"
+  slot-type: "belt"
+  lore:
+    - "&7Greatly reduces the duration of negative effects"
+  has-3d-model: true
+  pitch-down-limit: 50.0
+  abilities: {}
+
+universal_attractor:
+  name: "&bUniversal Attractor"
+  material: "CARROT_ON_A_STICK"
+  custom-model-data: 201032
+  item-model: "universal_attractor"
+  slot-type: "belt"
+  lore:
+    - "&7Attracts nearby items"
+  has-3d-model: true
+  pitch-down-limit: 50.0
+  abilities: {}
+
+crystal_heart:
+  name: "&bCrystal Heart"
+  material: "CARROT_ON_A_STICK"
+  custom-model-data: 201033
+  item-model: "crystal_heart"
+  slot-type: "belt"
+  lore:
+    - "&7Increases the wearer's maximum health"
+  has-3d-model: true
+  pitch-down-limit: 50.0
+  abilities: {}
+
+helium_flamingo:
+  name: "&bHelium Flamingo"
+  material: "CARROT_ON_A_STICK"
+  custom-model-data: 201034
+  item-model: "helium_flamingo"
+  slot-type: "belt"
+  lore:
+    - "&7Allows the wearer to swim in the air for a limited period of time"
+    - "&7Press Left Control while in the air to start swimming"
+  has-3d-model: true
+  pitch-down-limit: 30.0
+  abilities: {}
+
+chorus_totem:
+  name: "&bChorus Totem"
+  material: "TOTEM_OF_UNDYING"
+  custom-model-data: 201035
+  item-model: "chorus_totem"
+  slot-type: "belt"
+  lore:
+    - "&7A fatal hit teleports you somewhere else instead"
+  has-3d-model: true
+  pitch-down-limit: 50.0
+  abilities: {}
+
+digging_claws:
+  name: "&bDigging Claws"
+  material: "CARROT_ON_A_STICK"
+  custom-model-data: 201036
+  item-model: "digging_claws"
+  slot-type: "hands"
+  lore:
+    - "&7Increases the wearer's base mining level to stone"
+    - "&7Increases the wearer's mining Speed"
+  has-3d-model: false
+  abilities: {}
+
+feral_claws:
+  name: "&bFeral Claws"
+  material: "CARROT_ON_A_STICK"
+  custom-model-data: 201037
+  item-model: "feral_claws"
+  slot-type: "hands"
+  lore:
+    - "&7Increases the wearer's attack speed"
+  has-3d-model: false
+  abilities: {}
+
+power_glove:
+  name: "&bPower Glove"
+  material: "CARROT_ON_A_STICK"
+  custom-model-data: 201038
+  item-model: "power_glove"
+  slot-type: "hands"
+  lore:
+    - "&7Increases damage dealth by the wearer"
+  has-3d-model: false
+  abilities: {}
+
+fire_gauntlet:
+  name: "&bFire Gauntlet"
+  material: "CARROT_ON_A_STICK"
+  custom-model-data: 201039
+  item-model: "fire_gauntlet"
+  slot-type: "hands"
+  lore:
+    - "&7Causes the wearer's melee attacks to deal fire damage"
+  has-3d-model: false
+  abilities: {}
+
+pocket_piston:
+  name: "&bPocket Piston"
+  material: "CARROT_ON_A_STICK"
+  custom-model-data: 201040
+  item-model: "pocket_piston"
+  slot-type: "hands"
+  lore:
+    - "&7Increases knockback dealth by the wearer"
+  has-3d-model: false
+  abilities: {}
+
+vampiric_glove:
+  name: "&bVampiric Glove"
+  material: "CARROT_ON_A_STICK"
+  custom-model-data: 201041
+  item-model: "vampiric_glove"
+  slot-type: "hands"
+  lore:
+    - "&7Causes the wearer's melee attacks to absorb health"
+  has-3d-model: false
+  abilities: {}
+
+golden_hook:
+  name: "&bGolden Hook"
+  material: "CARROT_ON_A_STICK"
+  custom-model-data: 201042
+  item-model: "golden_hook"
+  slot-type: "hands"
+  lore:
+    - "&7Increases the experience dropped by creatures"
+  has-3d-model: false
+  abilities: {}
+
+onion_ring:
+  name: "&bOnion Ring"
+  material: "CARROT_ON_A_STICK"
+  custom-model-data: 201043
+  item-model: "onion_ring"
+  slot-type: "hands"
+  lore:
+    - "&7Grants a temporary boost to mining speed after eating food"
+  has-3d-model: false
+  abilities: {}
+
+pickaxe_heater:
+  name: "&bPickaxe Heater"
+  material: "CARROT_ON_A_STICK"
+  custom-model-data: 201044
+  item-model: "pickaxe_heater"
+  slot-type: "hands"
+  lore:
+    - "&7Automatically smelts mined ores"
+  has-3d-model: false
+  abilities: {}
+
+aqua_dashers:
+  name: "&bAqua-Dashers"
+  material: "CARROT_ON_A_STICK"
+  custom-model-data: 201045
+  item-model: "aqua_dashers"
+  slot-type: "feet"
+  lore:
+    - "&7Allows the wearer to walk on fluids while sprinting"
+  has-3d-model: false
+  abilities: {}
+
+bunny_hoppers:
+  name: "&bBunny Hoppers"
+  material: "CARROT_ON_A_STICK"
+  custom-model-data: 201046
+  item-model: "bunny_hoppers"
+  slot-type: "feet"
+  lore:
+    - "&7Increases the wearer's jump height"
+    - "&7Grants immunity to fall damage"
+  has-3d-model: false
+  abilities: {}
+
+kitty_slippers:
+  name: "&bKitty Slippers"
+  material: "CARROT_ON_A_STICK"
+  custom-model-data: 201047
+  item-model: "kitty_slippers"
+  slot-type: "feet"
+  lore:
+    - "&7Creepers avoid the wearer"
+  has-3d-model: false
+  abilities: {}
+
+running_shoes:
+  name: "&bRunning Shoes"
+  material: "CARROT_ON_A_STICK"
+  custom-model-data: 201048
+  item-model: "running_shoes"
+  slot-type: "feet"
+  lore:
+    - "&7Increases the wearer's movement speed while sprinting"
+    - "&7Increases the wearer's step height while sprinting"
+  has-3d-model: false
+  abilities: {}
+
+snowshoes:
+  name: "&bSnowshoes"
+  material: "CARROT_ON_A_STICK"
+  custom-model-data: 201049
+  item-model: "snowshoes"
+  slot-type: "feet"
+  lore:
+    - "&7Allows the wearer to walk on Powder Snow"
+    - "&7Makes ice less slippery to walk on"
+  has-3d-model: false
+  abilities: {}
+
+steadfast_spikes:
+  name: "&bSteadfast Spikes"
+  material: "CARROT_ON_A_STICK"
+  custom-model-data: 201050
+  item-model: "steadfast_spikes"
+  slot-type: "feet"
+  lore:
+    - "&7Grants immunity to knockback"
+  has-3d-model: false
+  abilities: {}
+
+flippers:
+  name: "&bFlippers"
+  material: "CARROT_ON_A_STICK"
+  custom-model-data: 201051
+  item-model: "flippers"
+  slot-type: "feet"
+  lore:
+    - "&7Improves agility in water"
+  has-3d-model: false
+  abilities: {}
+
+rooted_boots:
+  name: "&bRooted Boots"
+  material: "CARROT_ON_A_STICK"
+  custom-model-data: 201052
+  item-model: "rooted_boots"
+  slot-type: "feet"
+  lore:
+    - "&7Slowly replenishes hunger while walking on grass"
+  has-3d-model: false
+  abilities: {}
+
+strider_shoes:
+  name: "&bStrider Shoes"
+  material: "CARROT_ON_A_STICK"
+  custom-model-data: 201054
+  item-model: "strider_shoes"
+  slot-type: "feet"
+  lore:
+    - "&7Allows the wearer to stand on lava while sneaking"
+    - "&7Grants protection against hot floor damage"
+  has-3d-model: false
+  abilities: {}
+
+warp_drive:
+  name: "&bWarp Drive"
+  material: "CARROT_ON_A_STICK"
+  custom-model-data: 201055
+  item-model: "warp_drive"
+  slot-type: "belt"
+  lore:
+    - "&7Ender Pearls are not consumed, but cost hunger instead"
+    - "&7Ender Pearls deal no damage"
+  has-3d-model: true
+  abilities: {}
+
+charm_of_shrinking:
+  name: "&bCharm of Shrinking"
+  material: "CARROT_ON_A_STICK"
+  custom-model-data: 201056
+  item-model: "charm_of_shrinking"
+  slot-type: "necklace"
+  lore:
+    - "&7Shrinks the wearer"
+  has-3d-model: true
+  pitch-down-limit: 30.0
+  abilities: {}
+
+withered_bracelet:
+  name: "&bWithered Bracelet"
+  material: "CARROT_ON_A_STICK"
+  custom-model-data: 201057
+  item-model: "withered_bracelet"
+  slot-type: "hands"
+  lore:
+    - "&7Melee attacks have a chance to inflict a wither effect"
+  has-3d-model: false
+  abilities: {}

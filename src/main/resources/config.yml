@@ -5,7 +5,7 @@
 # ═══════════════════════════════════════════════════════════════
 
 # DO NOT EDIT THIS
-version: "1.2"
+version: "1.3"
 
 # Update Checker
 updates:
@@ -311,6 +311,10 @@ items:
   # ─── Item 47: Charm of Shrinking ───
   charm_of_shrinking:
     enabled: true
+    # Scale modifier (-0.5 = 50% smaller)
+    scale-modifier: -0.5
+    # Scale operation: ADD_NUMBER, ADD_SCALAR, or MULTIPLY_SCALAR_1
+    scale-operation: ADD_SCALAR
     
   # ─── Item 48: Strider Shoes ───
   strider_shoes:

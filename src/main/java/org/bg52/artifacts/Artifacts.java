@@ -6,6 +6,7 @@ import org.bg52.artifacts.command.ArtifactsCommand;
 import org.bg52.artifacts.item.ItemRegistry;
 import org.bg52.artifacts.listener.*;
 import org.bg52.artifacts.manager.ArtifactConfigManager;
+import org.bg52.artifacts.manager.ArtifactItemsConfig;
 import org.bg52.artifacts.manager.CampsiteConfig;
 import org.bg52.artifacts.manager.CampsitePopulator;
 import org.bg52.artifacts.manager.CooldownManager;
@@ -26,6 +27,7 @@ public final class Artifacts extends JavaPlugin {
         private CooldownManager cooldownManager;
         private CuriosPaperAPI curiosPaperAPI;
         private ArtifactConfigManager artifactConfig;
+        private ArtifactItemsConfig artifactItemsConfig;
         private MimicConfig mimicConfig;
         private StoneTierManager stoneTierManager;
         private ItemRegistry itemRegistry;
@@ -67,6 +69,9 @@ public final class Artifacts extends JavaPlugin {
 
                 // Initialize config manager (loads config.yml)
                 artifactConfig = new ArtifactConfigManager(this);
+
+                // Initialize items config (loads artifacts.yml)
+                artifactItemsConfig = new org.bg52.artifacts.manager.ArtifactItemsConfig(this);
 
                 // Load food data for the Drinking Hat
                 org.bg52.artifacts.util.FoodUtil.loadFoodInfo(this);
@@ -220,7 +225,7 @@ public final class Artifacts extends JavaPlugin {
                 // Setup Geyser integration if present
                 checkAndSetupGeyserIntegration();
 
-                getLogger().info("Artifacts enabled. " + ArtifactItem().length + " items registered. "
+                getLogger().info("Artifacts enabled. " + org.bg52.artifacts.item.ArtifactItem.values().length + " items registered. "
                                 + "Item model support: " + VersionUtil.supportsItemModel());
         }
 
@@ -265,10 +270,6 @@ public final class Artifacts extends JavaPlugin {
                 }
         }
 
-        private org.bg52.artifacts.item.ArtifactItem[] ArtifactItem() {
-                return org.bg52.artifacts.item.ArtifactItem.values();
-        }
-
         public MimicManager getMimicManager() {
                 return mimicManager;
         }
@@ -279,6 +280,10 @@ public final class Artifacts extends JavaPlugin {
 
         public ArtifactConfigManager getArtifactConfig() {
                 return artifactConfig;
+        }
+
+        public ArtifactItemsConfig getArtifactItemsConfig() {
+                return artifactItemsConfig;
         }
 
         public StoneTierManager getStoneTierManager() {
@@ -295,6 +300,10 @@ public final class Artifacts extends JavaPlugin {
 
         public CampsiteConfig getCampsiteConfig() {
                 return campsiteConfig;
+        }
+
+        public PassiveArtifactsListener getPassiveArtifactsListener() {
+                return passiveArtifactsListener;
         }
 
         private void checkAndSetupGeyserIntegration() {

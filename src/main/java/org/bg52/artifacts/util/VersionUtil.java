@@ -32,21 +32,43 @@ public class VersionUtil {
     private static void parseVersion() {
         try {
             String versionString = Bukkit.getBukkitVersion();
-            String[] parts = versionString.split("-")[0].split("\\.");
-            if (parts.length >= 2) {
-                majorVersion = Integer.parseInt(parts[0]);
-                minorVersion = Integer.parseInt(parts[1]);
-            }
-            if (parts.length >= 3) {
-                patchVersion = Integer.parseInt(parts[2]);
-            } else {
-                patchVersion = 0;
+            if (!tryParse(versionString)) {
+                String fullVersion = Bukkit.getVersion();
+                if (!tryParse(fullVersion)) {
+                    majorVersion = 1;
+                    minorVersion = 14;
+                    patchVersion = 0;
+                }
             }
         } catch (Exception e) {
             majorVersion = 1;
             minorVersion = 14;
             patchVersion = 0;
         }
+    }
+
+    private static boolean tryParse(String versionStr) {
+        if (versionStr == null || versionStr.trim().isEmpty()) {
+            return false;
+        }
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("(\\d+)\\.(\\d+)(?:\\.(\\d+))?");
+        java.util.regex.Matcher matcher = pattern.matcher(versionStr);
+
+        if (matcher.find()) {
+            try {
+                majorVersion = Integer.parseInt(matcher.group(1));
+                minorVersion = Integer.parseInt(matcher.group(2));
+                if (matcher.group(3) != null) {
+                    patchVersion = Integer.parseInt(matcher.group(3));
+                } else {
+                    patchVersion = 0;
+                }
+                return true;
+            } catch (NumberFormatException e) {
+                return false;
+            }
+        }
+        return false;
     }
 
     public static int getMajorVersion() {

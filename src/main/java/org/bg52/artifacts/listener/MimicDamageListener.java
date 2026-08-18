@@ -224,6 +224,16 @@ public class MimicDamageListener implements Listener {
     }
 
     /**
+     * Prevent CuriosPaper from equipping curios 3D models on mimic entities.
+     */
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onCuriosMobModelEquip(org.bg52.curiospaper.event.CuriosMobModelEquipEvent event) {
+        if (event.getEntity() instanceof Zombie && isMimicZombie((Zombie) event.getEntity())) {
+            event.setCancelled(true);
+        }
+    }
+
+    /**
      * Check if a zombie is a mimic component via PDC or manager lookup.
      */
     private boolean isMimicZombie(Zombie zombie) {
