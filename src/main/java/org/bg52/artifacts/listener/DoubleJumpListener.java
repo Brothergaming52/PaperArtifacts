@@ -8,13 +8,16 @@ import org.bg52.curiospaper.api.CuriosPaperAPI;
 import org.bukkit.GameMode;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
+import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.player.PlayerToggleFlightEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
+import org.bg52.artifacts.scheduler.PlatformScheduler;
 import org.bukkit.util.Vector;
 
 import java.util.HashSet;
@@ -29,11 +32,13 @@ public class DoubleJumpListener implements Listener {
     private final Artifacts plugin;
     private final CuriosPaperAPI api;
     private final ArtifactConfigManager configManager;
-    private BukkitTask groundCheckTask;
+    private PlatformScheduler.TaskHandle groundCheckTask;
     private boolean useModernInput = false;
 
     // Set of players with available double jumps (for modern input-based detection)
     private final Set<UUID> availableJumps = new HashSet<>();
+    private final Set<UUID> hasReleasedJumpKey = new HashSet<>();
+    private final Set<UUID> doubleJumpProtected = new HashSet<>();
 
     public DoubleJumpListener(Artifacts plugin, CuriosPaperAPI api, ArtifactConfigManager configManager) {
         this.plugin = plugin;
@@ -58,26 +63,28 @@ public class DoubleJumpListener implements Listener {
 
         if (!useModernInput) {
             plugin.getLogger().info("[Artifacts] Falling back to legacy flight-based double jump.");
-            this.groundCheckTask = new BukkitRunnable() {
-                @Override
-                public void run() {
-                    for (Player player : plugin.getServer().getOnlinePlayers()) {
-                        if (player.getGameMode() == GameMode.CREATIVE || player.getGameMode() == GameMode.SPECTATOR) {
-                            continue;
-                        }
+        }
 
-                        if (player.isOnGround()) {
-                            if (configManager.isItemEnabled(ArtifactItem.CLOUD_IN_A_BOTTLE.getId()) &&
-                                    ArtifactUtil.hasEquipped(player, ArtifactItem.CLOUD_IN_A_BOTTLE, api)) {
-                                player.setAllowFlight(true);
-                            } else if (player.getAllowFlight()) {
-                                player.setAllowFlight(false);
-                            }
+        this.groundCheckTask = PlatformScheduler.get().runGlobalTimer(() -> {
+            for (Player player : plugin.getServer().getOnlinePlayers()) {
+                PlatformScheduler.get().runEntity(player, () -> {
+                    if (player.getGameMode() == GameMode.CREATIVE || player.getGameMode() == GameMode.SPECTATOR) {
+                        return;
+                    }
+
+                    if (player.isOnGround()) {
+                        availableJumps.add(player.getUniqueId());
+                        hasReleasedJumpKey.remove(player.getUniqueId());
+                        if (configManager.isItemEnabled(ArtifactItem.CLOUD_IN_A_BOTTLE.getId()) &&
+                                ArtifactUtil.hasEquipped(player, ArtifactItem.CLOUD_IN_A_BOTTLE, api)) {
+                            player.setAllowFlight(true);
+                        } else if (player.getAllowFlight()) {
+                            player.setAllowFlight(false);
                         }
                     }
-                }
-            }.runTaskTimer(plugin, 4L, 4L);
-        }
+                });
+            }
+        }, 4L, 4L);
     }
 
     private void registerModernListeners(Class<? extends Event> inputClass, Class<? extends Event> jumpClass) {
@@ -93,6 +100,7 @@ public class DoubleJumpListener implements Listener {
                         Player player = (Player) event.getClass().getMethod("getPlayer").invoke(event);
                         if (!canDoubleJump(player)) return;
                         availableJumps.add(player.getUniqueId());
+                        hasReleasedJumpKey.remove(player.getUniqueId());
                     } catch (Exception e) {
                         // ignore or log
                     }
@@ -114,15 +122,24 @@ public class DoubleJumpListener implements Listener {
                         if (!canDoubleJump(player)) return;
 
                         UUID playerId = player.getUniqueId();
-                        if (player.isOnGround()) return;
+                        if (player.isOnGround()) {
+                            availableJumps.add(playerId);
+                            hasReleasedJumpKey.remove(playerId);
+                            return;
+                        }
 
                         Object input = event.getClass().getMethod("getInput").invoke(event);
                         boolean isJump = (boolean) input.getClass().getMethod("isJump").invoke(input);
 
-                        if (!isJump) return;
-                        if (!availableJumps.contains(playerId)) return;
+                        if (!isJump) {
+                            hasReleasedJumpKey.add(playerId);
+                            return;
+                        }
+
+                        if (!availableJumps.contains(playerId) || !hasReleasedJumpKey.contains(playerId)) return;
 
                         availableJumps.remove(playerId);
+                        hasReleasedJumpKey.remove(playerId);
                         applyDoubleJump(player);
                     } catch (Exception e) {
                         // ignore or log
@@ -163,27 +180,41 @@ public class DoubleJumpListener implements Listener {
         // Apply the final computed velocity
         player.setVelocity(jumpVelocity);
 
-        // Cloud of white particles where they jumped
-        player.getWorld().spawnParticle(Particle.CLOUD, player.getLocation().add(0, 0.2, 0), 30, 0.5, 0.1, 0.5,
-                0.05);
+        doubleJumpProtected.add(player.getUniqueId());
 
-        // Minor wind-like sound
-        player.getWorld().playSound(player.getLocation(), Sound.ENTITY_ENDER_DRAGON_FLAP, 0.5f, 1.5f);
+        if (configManager.isParticlesEnabled()) {
+            Location feetLoc = player.getLocation().add(0, 0.15, 0);
+            for (int i = 0; i < 25; ++i) {
+                double rx = (Math.random() - 0.5) * 0.45;
+                double ry = Math.random() * 0.2;
+                double rz = (Math.random() - 0.5) * 0.45;
+                Location pLoc = feetLoc.clone().add(rx, ry, rz);
+                player.getWorld().spawnParticle(Particle.CLOUD, pLoc, 1, 0.0, 0.05, 0.0, 0.02);
+                try {
+                    player.getWorld().spawnParticle(Particle.POOF, pLoc, 1, 0.0, 0.05, 0.0, 0.02);
+                } catch (Throwable ignored) {}
+            }
+        }
+
+        if (configManager.isSoundsEnabled()) {
+            player.getWorld().playSound(player.getLocation(), Sound.ENTITY_ENDER_DRAGON_FLAP, 0.6f, 1.6f);
+            try {
+                player.getWorld().playSound(player.getLocation(), Sound.valueOf("ITEM_ARMOR_EQUIP_ELYTRA"), 0.5f, 1.4f);
+            } catch (Throwable ignored) {}
+        }
     }
 
     public void shutdown() {
         if (groundCheckTask != null) {
             groundCheckTask.cancel();
         }
+        doubleJumpProtected.clear();
+        availableJumps.clear();
+        hasReleasedJumpKey.clear();
     }
 
     @EventHandler
     public void onDoubleJump(PlayerToggleFlightEvent event) {
-        if (useModernInput) {
-            // If using modern input-based detection, ignore flight toggle event entirely
-            return;
-        }
-
         Player player = event.getPlayer();
 
         if (player.getGameMode() == GameMode.CREATIVE || player.getGameMode() == GameMode.SPECTATOR) {
@@ -202,8 +233,29 @@ public class DoubleJumpListener implements Listener {
         }
     }
 
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onFallDamage(EntityDamageEvent event) {
+        if (event.getEntity() instanceof Player && event.getCause() == EntityDamageEvent.DamageCause.FALL) {
+            Player player = (Player) event.getEntity();
+            boolean hasBottle = configManager.isItemEnabled(ArtifactItem.CLOUD_IN_A_BOTTLE.getId())
+                    && ArtifactUtil.hasEquipped(player, ArtifactItem.CLOUD_IN_A_BOTTLE, api);
+            if (hasBottle && (configManager.isCloudInABottleFallDamageImmune() || doubleJumpProtected.contains(player.getUniqueId()))) {
+                event.setCancelled(true);
+                doubleJumpProtected.remove(player.getUniqueId());
+                player.setFallDistance(0.0f);
+                if (configManager.isParticlesEnabled()) {
+                    player.getWorld().spawnParticle(Particle.CLOUD, player.getLocation().add(0, 0.1, 0), 12, 0.3, 0.05, 0.3, 0.02);
+                }
+                if (configManager.isSoundsEnabled()) {
+                    player.getWorld().playSound(player.getLocation(), Sound.BLOCK_WOOL_FALL, 0.8f, 1.3f);
+                }
+            }
+        }
+    }
+
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
         availableJumps.remove(event.getPlayer().getUniqueId());
+        doubleJumpProtected.remove(event.getPlayer().getUniqueId());
     }
 }

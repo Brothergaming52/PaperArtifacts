@@ -4,7 +4,7 @@ import org.bg52.artifacts.Artifacts;
 import org.bg52.artifacts.item.ArtifactItem;
 import org.bg52.artifacts.util.ArtifactUtil;
 import org.bg52.curiospaper.api.CuriosPaperAPI;
-import org.bg52.curiospaper.event.AccessoryEquipEvent;
+import org.bg52.curiospaper.api.event.AccessoryEquipEvent;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -13,11 +13,14 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityPotionEffectEvent;
 import org.bukkit.event.raid.RaidFinishEvent;
 import org.bukkit.potion.PotionEffect;
+import org.bukkit.Particle;
+import org.bukkit.Sound;
 import org.bukkit.potion.PotionEffectType;
 
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
+import org.bg52.artifacts.scheduler.PlatformScheduler;
 
 /**
  * Villager Hat: Reduces villager trade prices while equipped.
@@ -85,6 +88,13 @@ public class VillagerHatListener implements Listener {
     }
 
     private void onEquip(Player player) {
+        if (plugin.getArtifactConfig().isParticlesEnabled()) {
+            player.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, player.getEyeLocation().add(0.0, 0.3, 0.0), 8, 0.3, 0.2, 0.3, 0.0);
+        }
+        if (plugin.getArtifactConfig().isSoundsEnabled()) {
+            player.getWorld().playSound(player.getLocation(), Sound.ENTITY_VILLAGER_YES, 0.8f, 1.0f);
+        }
+
         PotionEffect existing = player.getPotionEffect(PotionEffectType.HERO_OF_THE_VILLAGE);
         
         if (existing != null) {
@@ -152,7 +162,7 @@ public class VillagerHatListener implements Listener {
         if (action == EntityPotionEffectEvent.Action.CLEARED || action == EntityPotionEffectEvent.Action.REMOVED) {
             // The combined/finite effect expired or was removed by milk. 
             // Player still has hat equipped, so reapply the hat effect on next tick!
-            Bukkit.getScheduler().runTask(plugin, () -> {
+            PlatformScheduler.get().runEntity(player, () -> {
                 if (player.isOnline() && ArtifactUtil.hasEquipped(player, ArtifactItem.VILLAGER_HAT, api)) {
                     applyHatOnlyEffect(player);
                 }
@@ -174,7 +184,7 @@ public class VillagerHatListener implements Listener {
                 );
                 
                 event.setCancelled(true);
-                Bukkit.getScheduler().runTask(plugin, () -> {
+                PlatformScheduler.get().runEntity(player, () -> {
                     if (player.isOnline() && ArtifactUtil.hasEquipped(player, ArtifactItem.VILLAGER_HAT, api)) {
                         applyEffect(player, combined);
                     }
@@ -195,7 +205,7 @@ public class VillagerHatListener implements Listener {
             int hatAmp = getHatAmplifier();
             int combinedAmp = nativeAmp + hatAmp + 1;
             
-            Bukkit.getScheduler().runTask(plugin, () -> {
+            PlatformScheduler.get().runEntity(player, () -> {
                 if (!player.isOnline()) return;
                 PotionEffect combined = new PotionEffect(
                     PotionEffectType.HERO_OF_THE_VILLAGE,

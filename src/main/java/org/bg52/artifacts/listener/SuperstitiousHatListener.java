@@ -10,6 +10,8 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDeathEvent;
+import org.bukkit.Particle;
+import org.bukkit.Sound;
 import org.bukkit.inventory.ItemStack;
 
 import java.util.List;
@@ -54,10 +56,21 @@ public class SuperstitiousHatListener implements Listener {
             ItemStack drop = drops.get(i);
             if (drop == null) continue;
 
+            // Do not apply extra looting to artifact items or non-stackable items
+            if (drop.getMaxStackSize() == 1 || ArtifactUtil.getArtifactItem(drop, api) != null) {
+                continue;
+            }
+
             // For each bonus looting level, 50% chance to add 1 extra
             for (int level = 0; level < bonusLevels; level++) {
                 if (random.nextFloat() < 0.5f) {
                     drop.setAmount(drop.getAmount() + 1);
+                    if (plugin.getArtifactConfig().isParticlesEnabled()) {
+                        entity.getWorld().spawnParticle(Particle.ENCHANTED_HIT, entity.getLocation().add(0.0, 0.8, 0.0), 8, 0.3, 0.3, 0.3, 0.05);
+                    }
+                    if (plugin.getArtifactConfig().isSoundsEnabled()) {
+                        killer.playSound(entity.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.6f, 1.6f);
+                    }
                 }
             }
         }

@@ -134,7 +134,7 @@ public class FoodUtil {
             // Note: In 1.14-1.20.4, translating PotionType to PotionEffect requires
             // mapping.
             PotionType baseType = potionMeta.getBasePotionData().getType();
-            if (baseType != PotionType.WATER && baseType != PotionType.UNCRAFTABLE && baseType != PotionType.AWKWARD
+            if (baseType != PotionType.WATER && baseType != PotionType.AWKWARD
                     && baseType != PotionType.THICK && baseType != PotionType.MUNDANE) {
                 PotionEffectType effectType = baseType.getEffectType();
                 if (effectType != null) {

@@ -17,6 +17,7 @@ public class CampsiteConfig {
     private final File configFile;
     private FileConfiguration config;
 
+    private boolean enabled = true;
     private int count;
     private int minY;
     private int maxY;
@@ -41,12 +42,13 @@ public class CampsiteConfig {
         }
         config = YamlConfiguration.loadConfiguration(configFile);
 
-        // Load count from Campsite.yml
+        // Load count and enabled status from Campsite.yml
         count = config.getInt("campsite.count", config.getInt("count", 10));
         boolean campsiteEnabled = config.getBoolean("campsite.enabled", config.getBoolean("enabled", true));
         if (!campsiteEnabled) {
             count = 0;
         }
+        enabled = campsiteEnabled && count > 0;
 
         // Also check if configured in main config.yml (e.g. campsite: 0, campsite.count: 0, campsite.enabled: false)
         FileConfiguration mainConfig = plugin.getConfig();
@@ -72,6 +74,9 @@ public class CampsiteConfig {
 
         if (count < 0) {
             count = 0;
+        }
+        if (count == 0) {
+            enabled = false;
         }
 
         minY = config.getInt("campsite.min-y", config.getInt("min-y", -60));
@@ -182,5 +187,9 @@ public class CampsiteConfig {
 
     public int getMaxCeilingHeight() {
         return maxCeilingHeight;
+    }
+
+    public boolean isEnabled() {
+        return enabled && count > 0;
     }
 }

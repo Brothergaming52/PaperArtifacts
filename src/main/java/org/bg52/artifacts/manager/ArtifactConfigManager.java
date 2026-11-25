@@ -601,4 +601,36 @@ public class ArtifactConfigManager {
         }
         directory.delete();
     }
+
+    // ──────────────────────────────────────────────
+    // Visual & Audio Settings
+    // ──────────────────────────────────────────────
+
+    public boolean isParticlesEnabled() {
+        return config.getBoolean("effects.enable-particles", true);
+    }
+
+    public boolean isSoundsEnabled() {
+        return config.getBoolean("effects.enable-sounds", true);
+    }
+
+    // ──────────────────────────────────────────────
+    // Cloud in a Bottle
+    // ──────────────────────────────────────────────
+
+    public boolean isCloudInABottleFallDamageImmune() {
+        return config.getBoolean("items.cloud_in_a_bottle.fall-damage-immune", true);
+    }
+
+    // ──────────────────────────────────────────────
+    // Chorus Totem
+    // ──────────────────────────────────────────────
+
+    public double getChorusTotemTeleportDiameter() {
+        return config.getDouble("items.chorus_totem.teleport-diameter", 16.0);
+    }
+
+    public boolean isChorusTotemSaveFromVoid() {
+        return config.getBoolean("items.chorus_totem.save-from-void", true);
+    }
 }

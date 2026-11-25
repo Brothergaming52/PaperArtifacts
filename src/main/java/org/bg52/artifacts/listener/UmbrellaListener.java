@@ -19,7 +19,9 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.potion.PotionEffect;
+import org.bukkit.Sound;
 import org.bukkit.potion.PotionEffectType;
+import org.bg52.artifacts.scheduler.PlatformScheduler;
 
 /**
  * Umbrella: Grants Slow Falling while held in either hand.
@@ -37,7 +39,7 @@ public class UmbrellaListener implements Listener {
     }
 
     private void scheduleUpdate(Player player) {
-        plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+        PlatformScheduler.get().runEntityLater(player, () -> {
             if (player.isOnline()) {
                 updateEffect(player);
             }
@@ -125,6 +127,9 @@ public class UmbrellaListener implements Listener {
         }
 
         if (ArtifactUtil.isHolding(player, ArtifactItem.UMBRELLA)) {
+            if (!player.hasPotionEffect(PotionEffectType.SLOW_FALLING) && plugin.getArtifactConfig().isSoundsEnabled()) {
+                player.playSound(player.getLocation(), Sound.ITEM_ARMOR_EQUIP_LEATHER, 0.6f, 1.4f);
+            }
             int amplifier = plugin.getArtifactConfig().getUmbrellaSlowFallingAmplifier();
             PotionEffect effect = new PotionEffect(
                     PotionEffectType.SLOW_FALLING,

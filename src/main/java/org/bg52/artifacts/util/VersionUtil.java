@@ -3,7 +3,6 @@ package org.bg52.artifacts.util;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.bg52.artifacts.entity.MimicModel;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -124,33 +123,23 @@ public class VersionUtil {
     }
 
     /**
-     * Set the mimic model on a carrot on a stick's ItemMeta.
-     * Always sets CustomModelData for backwards compatibility.
-     * Additionally sets item model on 1.21.3+ for modern resource packs.
+     * Safely set the item model on ItemMeta for Minecraft 1.21.3+.
      */
-    @SuppressWarnings("deprecation")
-    public static void setMimicModel(ItemMeta meta, MimicModel model) {
-        if (meta == null || model == null)
+    public static void setItemModel(ItemMeta meta, NamespacedKey key) {
+        if (meta == null || key == null || !supportsItemModel()) {
             return;
-
-        // Always set CustomModelData for all versions
-        meta.setCustomModelData(model.getCustomModelData());
-
-        // Additionally set item model on 1.21.3+
-        if (supportsItemModel()) {
-            try {
-                if (!setItemModelMethodChecked) {
-                    setItemModelMethodChecked = true;
-                    Class<?> itemMetaClass = Class.forName("org.bukkit.inventory.meta.ItemMeta");
-                    setItemModelMethod = itemMetaClass.getMethod("setItemModel", NamespacedKey.class);
-                }
-                if (setItemModelMethod != null) {
-                    NamespacedKey key = new NamespacedKey("artifacts", model.getItemModelKey());
-                    setItemModelMethod.invoke(meta, key);
-                }
-            } catch (Exception e) {
-                Bukkit.getLogger().warning("[Artifacts] Failed to set item model via reflection: " + e.getMessage());
+        }
+        try {
+            if (!setItemModelMethodChecked) {
+                setItemModelMethodChecked = true;
+                Class<?> itemMetaClass = Class.forName("org.bukkit.inventory.meta.ItemMeta");
+                setItemModelMethod = itemMetaClass.getMethod("setItemModel", NamespacedKey.class);
             }
+            if (setItemModelMethod != null) {
+                setItemModelMethod.invoke(meta, key);
+            }
+        } catch (Exception ignored) {
+            // Silently fall back if reflection fails
         }
     }
 

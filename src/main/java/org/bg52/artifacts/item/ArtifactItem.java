@@ -456,8 +456,6 @@ public enum ArtifactItem {
         private Float pitchUpLimit;
         private Float pitchDownLimit;
 
-        private List<org.bg52.curiospaper.data.AbilityData> abilities = new java.util.ArrayList<>();
-
         ArtifactItem(String id, Material baseMaterial, int customModelData,
                         String itemModelKey, String displayName, String slotType,
                         List<String> lore) {
@@ -583,14 +581,6 @@ public enum ArtifactItem {
                 if (lore != null) {
                         this.lore = lore;
                 }
-        }
-
-        public List<org.bg52.curiospaper.data.AbilityData> getAbilities() {
-                return abilities != null ? abilities : new java.util.ArrayList<>();
-        }
-
-        public void setAbilities(List<org.bg52.curiospaper.data.AbilityData> abilities) {
-                this.abilities = abilities != null ? new java.util.ArrayList<>(abilities) : new java.util.ArrayList<>();
         }
 
         public boolean isCurio() {

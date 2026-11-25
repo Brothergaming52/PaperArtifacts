@@ -7,8 +7,9 @@ import org.bg52.artifacts.util.ArtifactUtil;
 import org.bg52.curiospaper.api.CuriosPaperAPI;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.Particle;
+import org.bukkit.Sound;
 import org.bukkit.block.Block;
-import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -16,18 +17,13 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityCombustByBlockEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
-import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.util.Vector;
-
-import java.util.*;
 
 public class StriderShoesListener implements Listener {
 
     private final Artifacts plugin;
     private final CuriosPaperAPI api;
     private final ArtifactConfigManager configManager;
-    private final Map<UUID, Set<Location>> ghostBlocks = new HashMap<>();
-    private final BlockData barrierData = Material.BARRIER.createBlockData();
 
     public StriderShoesListener(Artifacts plugin, CuriosPaperAPI api, ArtifactConfigManager configManager) {
         this.plugin = plugin;
@@ -36,129 +32,101 @@ public class StriderShoesListener implements Listener {
     }
 
     public void shutdown() {
-        for (UUID uuid : new HashSet<>(ghostBlocks.keySet())) {
-            Player player = plugin.getServer().getPlayer(uuid);
-            if (player != null) {
-                restoreGhostBlocks(player);
-            }
-        }
-        ghostBlocks.clear();
-    }
-
-    @EventHandler
-    public void onPlayerQuit(PlayerQuitEvent event) {
-        ghostBlocks.remove(event.getPlayer().getUniqueId());
+        // No persistent or fake block state to clean up
     }
 
     @EventHandler
     public void onPlayerMove(PlayerMoveEvent event) {
         Player player = event.getPlayer();
-        UUID uuid = player.getUniqueId();
 
         // Only run if the item is enabled
         if (!configManager.isItemEnabled("strider_shoes")) {
-            if (ghostBlocks.containsKey(uuid)) {
-                restoreGhostBlocks(player);
-            }
             return;
         }
 
-        // Check conditions for Strider Shoes - Shifting (Sneaking)
+        // Check conditions for Strider Shoes - Sneaking
         boolean canWalk = player.isSneaking() && ArtifactUtil.hasEquipped(player, ArtifactItem.STRIDER_SHOES, api);
 
-        if (!canWalk) {
-            if (ghostBlocks.containsKey(uuid)) {
-                restoreGhostBlocks(player);
-            }
+        // Break surface tension if falling from high up
+        if (!canWalk || player.getFallDistance() > 5.0f) {
             return;
         }
 
-        // Handle Ghost Blocks
-        Location center = player.getLocation().clone().subtract(0, 0.5, 0); // Check slightly below feet
-        int cx = center.getBlockX();
-        int cy = center.getBlockY();
-        int cz = center.getBlockZ();
+        Location to = event.getTo();
+        if (to == null || to.getWorld() == null) return;
 
-        Set<Location> targetFakes = new HashSet<>();
-
-        // Logic: If there is lava at the player's legs (cy + 1), stop sending fake
-        // blocks
-        boolean submerged = isLava(center.getWorld().getBlockAt(cx, cy + 1, cz));
-
-        if (!submerged) {
-            // Check a 3x1x3 area below the player's feet
-            for (int x = -1; x <= 1; x++) {
-                for (int z = -1; z <= 1; z++) {
-                    Block b = center.getWorld().getBlockAt(cx + x, cy, cz + z);
-                    if (isLava(b)) {
-                        targetFakes.add(b.getLocation());
-                    }
-                }
-            }
+        Double surfaceY = getLavaSurfaceY(to);
+        if (surfaceY == null) {
+            return;
         }
 
-        Set<Location> currentFakes = ghostBlocks.computeIfAbsent(uuid, k -> new HashSet<>());
+        // If player is at/near lava surface, clamp them smoothly onto the lava surface
+        // without using any fake barrier blocks
+        if (to.getY() < surfaceY && to.getY() >= surfaceY - 0.7) {
+            to.setY(surfaceY);
+            event.setTo(to);
 
-        // Restore blocks that are no longer targeted
-        Iterator<Location> it = currentFakes.iterator();
-        while (it.hasNext()) {
-            Location loc = it.next();
-            if (!targetFakes.contains(loc)) {
-                player.sendBlockChange(loc, loc.getBlock().getBlockData());
-                it.remove();
-            }
-        }
-
-        // Send new ghost blocks
-        for (Location loc : targetFakes) {
-            if (!currentFakes.contains(loc)) {
-                player.sendBlockChange(loc, barrierData);
-                currentFakes.add(loc);
-            }
-        }
-
-        if (currentFakes.isEmpty()) {
-            ghostBlocks.remove(uuid);
-        } else {
-            // If we are on lava barriers, ensure we don't fall and reset fall distance
             Vector v = player.getVelocity();
             if (v.getY() < 0) {
-                player.setFallDistance(0);
+                v.setY(0);
+                player.setVelocity(v);
+            }
+            player.setFallDistance(0);
+
+            // Lava surface walk effects
+            if (configManager.isParticlesEnabled()) {
+                Location particleLoc = new Location(to.getWorld(), to.getX(), surfaceY, to.getZ());
+                to.getWorld().spawnParticle(Particle.LAVA, particleLoc, 1, 0.2, 0.05, 0.2, 0.0);
+                to.getWorld().spawnParticle(Particle.FLAME, particleLoc, 2, 0.2, 0.05, 0.2, 0.02);
+            }
+            if (configManager.isSoundsEnabled() && Math.random() < 0.15) {
+                to.getWorld().playSound(to, Sound.BLOCK_LAVA_POP, 0.5f, 1.2f);
+            }
+        } else if (to.getY() >= surfaceY && to.getY() <= surfaceY + 0.1) {
+            player.setFallDistance(0);
+            if (configManager.isParticlesEnabled() && Math.random() < 0.3) {
+                Location particleLoc = new Location(to.getWorld(), to.getX(), surfaceY, to.getZ());
+                to.getWorld().spawnParticle(Particle.FLAME, particleLoc, 1, 0.15, 0.05, 0.15, 0.01);
             }
         }
     }
 
-    private void restoreGhostBlocks(Player player) {
-        Set<Location> locations = ghostBlocks.remove(player.getUniqueId());
-        if (locations != null) {
-            for (Location loc : locations) {
-                player.sendBlockChange(loc, loc.getBlock().getBlockData());
+    private Double getLavaSurfaceY(Location loc) {
+        if (loc.getWorld() == null) return null;
+        int bx = loc.getBlockX();
+        int bz = loc.getBlockZ();
+        int by = loc.getBlockY();
+
+        for (int checkY = by + 1; checkY >= by - 1; checkY--) {
+            Block block = loc.getWorld().getBlockAt(bx, checkY, bz);
+            if (isLava(block)) {
+                Block above = loc.getWorld().getBlockAt(bx, checkY + 1, bz);
+                if (!isLava(above) && !above.getType().isSolid()) {
+                    return (double) (checkY + 1);
+                }
             }
         }
+        return null;
     }
 
     private boolean isLava(Block block) {
         if (block == null)
             return false;
-        Material type = block.getType();
-        return type == Material.LAVA;
+        return block.getType() == Material.LAVA;
     }
 
     private boolean isNearLava(Player player) {
-        Location center = player.getLocation().clone().subtract(0, 0.5, 0);
+        Location center = player.getLocation();
         int cx = center.getBlockX();
         int cy = center.getBlockY();
         int cz = center.getBlockZ();
 
-        // Check legs first (submerged check)
-        if (isLava(center.getWorld().getBlockAt(cx, cy + 1, cz)))
-            return true;
-
-        // Check 3x3 below
-        for (int x = -1; x <= 1; x++) {
-            for (int z = -1; z <= 1; z++) {
-                if (isLava(center.getWorld().getBlockAt(cx + x, cy, cz + z))) {
-                    return true;
+        for (int dy = -1; dy <= 1; dy++) {
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dz = -1; dz <= 1; dz++) {
+                    if (isLava(center.getWorld().getBlockAt(cx + dx, cy + dy, cz + dz))) {
+                        return true;
+                    }
                 }
             }
         }
@@ -171,7 +139,6 @@ public class StriderShoesListener implements Listener {
             return;
 
         Player player = (Player) event.getEntity();
-
         EntityDamageEvent.DamageCause cause = event.getCause();
 
         // Only run if the item is enabled and equipped
@@ -186,7 +153,7 @@ public class StriderShoesListener implements Listener {
             return;
         }
 
-        // Other fire/lava damage is blocked only when sneaking near lava
+        // Other fire/lava damage is blocked when sneaking near lava or walking on lava
         if (cause == EntityDamageEvent.DamageCause.FIRE ||
                 cause == EntityDamageEvent.DamageCause.FIRE_TICK ||
                 cause == EntityDamageEvent.DamageCause.LAVA) {
@@ -210,7 +177,7 @@ public class StriderShoesListener implements Listener {
             return;
         }
 
-        // Only block combustion when sneaking near lava (active walker state)
+        // Only block combustion when sneaking near lava
         if (player.isSneaking() && isNearLava(player)) {
             event.setCancelled(true);
         }

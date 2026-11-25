@@ -1,8 +1,16 @@
 package org.bg52.artifacts.item;
 
 import org.bg52.artifacts.Artifacts;
-import org.bg52.artifacts.util.VersionUtil;
 import org.bg52.curiospaper.api.CuriosPaperAPI;
+import org.bg52.synthetix.api.SynthetixAPI;
+import org.bg52.synthetix.distribution.LootTableRule;
+import org.bg52.synthetix.distribution.MobDropRule;
+import org.bg52.synthetix.item.ItemDefinition;
+import org.bg52.synthetix.item.food.FoodComponentSpec;
+import org.bg52.synthetix.recipe.IngredientChoice;
+import org.bg52.synthetix.recipe.RecipeType;
+import org.bg52.synthetix.recipe.SynthetixRecipe;
+import org.bg52.synthetix.util.TextUtil;
 import org.bukkit.ChatColor;
 import org.bukkit.NamespacedKey;
 import org.bukkit.inventory.ItemFlag;
@@ -14,256 +22,262 @@ import java.util.List;
 import java.util.logging.Logger;
 
 /**
- * Registers all artifact items with the CuriosPaper API and provides
- * methods to create ItemStacks with correct CMD, item models, and metadata.
- *
- * Registration happens once on plugin enable. If the item already exists
- * in CuriosPaper's data store (e.g. from a previous run), it skips creation
- * but still ensures the item is usable.
+ * Super-modular registry coordinating all Artifact items, recipes, mob drops, and loot tables
+ * directly with the Synthetix core engine.
  */
 public class ItemRegistry {
 
     private final Artifacts plugin;
-    private final CuriosPaperAPI api;
+    private final CuriosPaperAPI curiosApi;
     private final Logger logger;
 
-    // Reflection cache for setItemModel
-    private static java.lang.reflect.Method setItemModelMethod = null;
-    private static boolean setItemModelMethodChecked = false;
-
-    public ItemRegistry(Artifacts plugin, CuriosPaperAPI api) {
+    public ItemRegistry(Artifacts plugin, CuriosPaperAPI curiosApi) {
         this.plugin = plugin;
-        this.api = api;
+        this.curiosApi = curiosApi;
         this.logger = plugin.getLogger();
     }
 
     /**
-     * Register all artifact items with CuriosPaper.
-     * Only creates items that don't already exist.
+     * Register all artifact items, cooking recipes, mob drops, and loot tables with Synthetix.
      */
     public void registerAll() {
-        int created = 0;
-        int skipped = 0;
+        if (!SynthetixAPI.getOptional().isPresent()) {
+            logger.severe("[ItemRegistry] Synthetix API not available! Skipping registration.");
+            return;
+        }
 
         // Ensure artifacts.yml is loaded before registering
         if (plugin.getArtifactItemsConfig() != null) {
             plugin.getArtifactItemsConfig().load();
         }
 
-        java.util.Map<String, List<org.bg52.curiospaper.data.LootTableData>> lootTables = ArtifactLootTables
-                .getLootTables(plugin);
-
-        java.util.Map<String, List<org.bg52.curiospaper.data.MobDropData>> mobDrops = ArtifactMobDrops
-                .getMobDrops(plugin);
+        int registeredItems = 0;
+        int skippedItems = 0;
 
         for (ArtifactItem artifact : ArtifactItem.values()) {
             // Check if disabled in config
             if (!plugin.getArtifactConfig().isItemEnabled(artifact.getId())) {
-                logger.info("Skipping disabled item: " + artifact.getId());
-                try {
-                    api.deleteItem(artifact.getId());
-                } catch (Exception ignored) {
-                }
-                skipped++;
+                skippedItems++;
                 continue;
             }
 
-            if (artifact == ArtifactItem.CHARM_OF_SHRINKING && !VersionUtil.isAtLeast(1, 20, 5)) {
-                try {
-                    api.deleteItem(artifact.getId());
-                } catch (Exception ignored) {
-                }
-                skipped++;
-                logger.info("Skipping Charm of Shrinking: Not supported on this Minecraft version");
-                continue;
-            }
+            ItemDefinition def = new ItemDefinition(artifact.getId());
+            def.setOwningPlugin("PaperArtifacts");
+            def.setDisplayName(artifact.getDisplayName());
+            def.setMaterial(artifact.getBaseMaterial());
+            def.setCustomModelData(artifact.getCustomModelData());
+            def.setItemModel("artifacts:" + artifact.getItemModelKey());
+            def.setLore(artifact.getLore());
 
-            // Create the item in CuriosPaper's data system if it doesn't already exist
-            org.bg52.curiospaper.data.ItemData itemData = api.getItemData(artifact.getId());
-            boolean isNew = false;
-            if (itemData == null) {
-                itemData = api.createItem(plugin, artifact.getId());
-                if (itemData == null) {
-                    logger.warning("Failed to create item: " + artifact.getId());
-                    continue;
-                }
-                isNew = true;
-            }
+            // Curios tags
+            if (artifact.isCurio()) {
+                def.setTag("curiospaper:slot_type", artifact.getSlotType());
+                def.setTag("curios_slot", artifact.getSlotType());
+                def.setTag("curios.slot", artifact.getSlotType());
+                def.setTag("slot", artifact.getSlotType());
+                def.setTag("curiospaper:render_model", artifact.has3DModel() ? "true" : "false");
 
-            // Sync all customized fields (display name, material, custom model data, item model, lore, slot type, abilities)
-            itemData.setDisplayName(artifact.getDisplayName());
-            itemData.setMaterial(artifact.getBaseMaterial().name());
-            itemData.setCustomModelData(artifact.getCustomModelData());
-            itemData.setItemModel("artifacts:" + artifact.getItemModelKey());
-            itemData.setLore(artifact.getLore());
-            itemData.setSlotType(artifact.getSlotType());
-            itemData.setAbilities(artifact.getAbilities());
+                if (artifact.has3DModel()) {
+                    def.setTag("curiospaper:model_item", artifact.getBaseMaterial().name());
+                    def.setTag("curiospaper:model_cmd", String.valueOf(artifact.get3DCustomModelData()));
+                    def.setTag("curiospaper:model_item_model", "artifacts:" + artifact.get3DItemModelKey());
 
-            // Always update loot tables and mob drops so config edits take effect immediately
-            if (lootTables.containsKey(artifact.getId())) {
-                itemData.setLootTables(lootTables.get(artifact.getId()));
-            } else {
-                itemData.setLootTables(new ArrayList<>());
-            }
-
-            if (mobDrops.containsKey(artifact.getId())) {
-                itemData.setMobDrops(mobDrops.get(artifact.getId()));
-            } else {
-                itemData.setMobDrops(new ArrayList<>());
-            }
-
-            if (isNew) {
-                created++;
-            } else {
-                skipped++;
-            }
-
-            api.saveItemData(artifact.getId());
-
-            // Always ensure 3D model configuration is up-to-date
-            if (artifact.has3DModel()) {
-                api.setItemModelConfig(artifact.getId(), true, artifact.getBaseMaterial().name(),
-                        artifact.get3DCustomModelData(), "artifacts:" + artifact.get3DItemModelKey(),
-                        artifact.getPitchUpLimit(), artifact.getPitchDownLimit());
-
-                if (mobDrops.containsKey(artifact.getId())) {
-                    for (org.bg52.curiospaper.data.MobDropData mobDrop : mobDrops.get(artifact.getId())) {
-                        api.setMobDropModelConfig(artifact.getId(), mobDrop.getEntityType(), true,
-                                artifact.getBaseMaterial().name(), artifact.get3DCustomModelData(),
-                                "artifacts:" + artifact.get3DItemModelKey());
+                    if (artifact.getPitchUpLimit() != null) {
+                        def.setTag("curiospaper:pitch_up_limit", String.valueOf(artifact.getPitchUpLimit()));
+                    }
+                    if (artifact.getPitchDownLimit() != null) {
+                        def.setTag("curiospaper:pitch_down_limit", String.valueOf(artifact.getPitchDownLimit()));
                     }
                 }
-                api.saveItemData(artifact.getId());
             }
 
-            if (artifact == ArtifactItem.ETERNAL_STEAK) {
-                // Furnace
-                org.bg52.curiospaper.data.RecipeData furnaceRecipe = new org.bg52.curiospaper.data.RecipeData(
-                        org.bg52.curiospaper.data.RecipeData.RecipeType.FURNACE);
-                furnaceRecipe.setInputItem(ArtifactItem.EVERLASTING_BEEF.getId());
-                furnaceRecipe.setCookingTime(plugin.getArtifactConfig().getEternalSteakFurnaceTime() * 20);
-                furnaceRecipe.setExperience(0.35f);
-                api.registerItemRecipe(artifact.getId(), furnaceRecipe);
-
-                // Smoker
-                org.bg52.curiospaper.data.RecipeData smokerRecipe = new org.bg52.curiospaper.data.RecipeData(
-                        org.bg52.curiospaper.data.RecipeData.RecipeType.SMOKER);
-                smokerRecipe.setInputItem(ArtifactItem.EVERLASTING_BEEF.getId());
-                smokerRecipe.setCookingTime(plugin.getArtifactConfig().getEternalSteakSmokerTime() * 20);
-                smokerRecipe.setExperience(0.35f);
-                api.registerItemRecipe(artifact.getId(), smokerRecipe);
-
-                // campfire
-                org.bg52.curiospaper.data.RecipeData campfireRecipe = new org.bg52.curiospaper.data.RecipeData(
-                        org.bg52.curiospaper.data.RecipeData.RecipeType.CAMPFIRE);
-                campfireRecipe.setInputItem(ArtifactItem.EVERLASTING_BEEF.getId());
-                campfireRecipe.setCookingTime(plugin.getArtifactConfig().getEternalSteakCampfireTime() * 20);
-                campfireRecipe.setExperience(0.35f);
-                api.registerItemRecipe(artifact.getId(), campfireRecipe);
+            // Item-specific components
+            if (artifact == ArtifactItem.UMBRELLA) {
+                def.setUnbreakable(true);
+            } else if (artifact == ArtifactItem.EVERLASTING_BEEF) {
+                FoodComponentSpec food = new FoodComponentSpec();
+                food.setNutrition(3);
+                food.setSaturation(1.8f);
+                food.setCanAlwaysEat(false);
+                food.setEatSeconds(1.6f);
+                def.setFood(food);
+                def.setMaxStackSize(1);
+            } else if (artifact == ArtifactItem.ETERNAL_STEAK) {
+                FoodComponentSpec food = new FoodComponentSpec();
+                food.setNutrition(8);
+                food.setSaturation(12.8f);
+                food.setCanAlwaysEat(false);
+                food.setEatSeconds(1.6f);
+                def.setFood(food);
+                def.setMaxStackSize(1);
             }
+
+            // Register into Synthetix ItemRegistry
+            SynthetixAPI.get().getItemRegistry().register(def);
+            registeredItems++;
         }
 
-        logger.info("Item registration complete: " + created + " created, " + skipped + " updated/skipped.");
+        logger.info("[ItemRegistry] Successfully registered " + registeredItems + " items into Synthetix (" + skippedItems + " skipped/disabled).");
+
+        // Synchronize registered slots into CuriosPaper so slot buttons show up immediately
+        if (curiosApi != null && curiosApi.getSlotRegistry() != null) {
+            for (ArtifactItem artifact : ArtifactItem.values()) {
+                if (artifact.isCurio() && artifact.getSlotType() != null) {
+                    curiosApi.getSlotRegistry().markSlotActive(artifact.getSlotType());
+                }
+            }
+            curiosApi.getSlotRegistry().refreshActiveSlots();
+        }
+
+        // ── Register Recipes ──
+        registerRecipes();
+
+        // ── Register Mob Drops & Loot Tables ──
+        registerDistribution();
+    }
+
+    private void registerRecipes() {
+        if (!plugin.getArtifactConfig().isItemEnabled("eternal_steak") ||
+            !plugin.getArtifactConfig().isItemEnabled("everlasting_beef")) {
+            return;
+        }
+
+        try {
+            // Furnace
+            SynthetixRecipe furnaceRecipe = new SynthetixRecipe("eternal_steak_furnace", RecipeType.FURNACE, "synth:eternal_steak", 1);
+            furnaceRecipe.setCookingInput(new IngredientChoice("synth:everlasting_beef"));
+            furnaceRecipe.setCookingTime(plugin.getArtifactConfig().getEternalSteakFurnaceTime() * 20);
+            furnaceRecipe.setExperience(0.35f);
+            SynthetixAPI.get().getRecipeManager().registerRecipe(furnaceRecipe, false);
+
+            // Smoker
+            SynthetixRecipe smokerRecipe = new SynthetixRecipe("eternal_steak_smoker", RecipeType.SMOKER, "synth:eternal_steak", 1);
+            smokerRecipe.setCookingInput(new IngredientChoice("synth:everlasting_beef"));
+            smokerRecipe.setCookingTime(plugin.getArtifactConfig().getEternalSteakSmokerTime() * 20);
+            smokerRecipe.setExperience(0.35f);
+            SynthetixAPI.get().getRecipeManager().registerRecipe(smokerRecipe, false);
+
+            // Campfire
+            SynthetixRecipe campfireRecipe = new SynthetixRecipe("eternal_steak_campfire", RecipeType.CAMPFIRE, "synth:eternal_steak", 1);
+            campfireRecipe.setCookingInput(new IngredientChoice("synth:everlasting_beef"));
+            campfireRecipe.setCookingTime(plugin.getArtifactConfig().getEternalSteakCampfireTime() * 20);
+            campfireRecipe.setExperience(0.35f);
+            SynthetixAPI.get().getRecipeManager().registerRecipe(campfireRecipe, false);
+
+            logger.info("[ItemRegistry] Registered Eternal Steak cooking recipes with Synthetix RecipeManager!");
+        } catch (Throwable t) {
+            logger.warning("[ItemRegistry] Failed to register recipes with Synthetix: " + t.getMessage());
+        }
+    }
+
+    private void registerDistribution() {
+        try {
+            // Register Mob Drops
+            List<MobDropRule> mobDrops = ArtifactMobDrops.getMobDrops(plugin);
+            for (MobDropRule rule : mobDrops) {
+                SynthetixAPI.get().getDistributionManager().getMobDropManager().registerRule(rule, false);
+            }
+            logger.info("[ItemRegistry] Registered " + mobDrops.size() + " mob drop rules with Synthetix!");
+
+            // Register Loot Table Injections
+            List<LootTableRule> lootTables = ArtifactLootTables.getLootTables(plugin);
+            for (LootTableRule rule : lootTables) {
+                SynthetixAPI.get().getDistributionManager().getLootTableInjector().registerRule(rule, false);
+            }
+            logger.info("[ItemRegistry] Registered " + lootTables.size() + " loot table rules with Synthetix!");
+        } catch (Throwable t) {
+            logger.warning("[ItemRegistry] Failed to register distribution rules with Synthetix: " + t.getMessage());
+        }
     }
 
     /**
-     * Create an ItemStack for the given artifact with all correct metadata.
-     * This method builds the stack manually for maximum control, rather
-     * than delegating to the CuriosPaper API's createItemStack()
-     * (which doesn't handle shield unbreakable flags, etc.).
+     * Create an ItemStack for the given artifact item with all metadata and tags.
      */
     public ItemStack createItemStack(ArtifactItem artifact) {
-        if (artifact == null)
-            return null;
+        if (artifact == null) return null;
+        return createItemStack(artifact.getId());
+    }
 
-        ItemStack item = new ItemStack(artifact.getBaseMaterial());
-        ItemMeta meta = item.getItemMeta();
-        if (meta == null)
-            return item;
+    /**
+     * Create an ItemStack by string ID.
+     */
+    public ItemStack createItemStack(String itemId) {
+        if (itemId == null) return null;
 
-        // Display name
-        meta.setDisplayName(ChatColor.translateAlternateColorCodes('&', artifact.getDisplayName()));
-
-        // Lore
-        List<String> coloredLore = new ArrayList<String>();
-        for (String line : artifact.getLore()) {
-            coloredLore.add(ChatColor.translateAlternateColorCodes('&', line));
-        }
-        meta.setLore(coloredLore);
-
-        // CustomModelData (always set for backwards compatibility)
-        meta.setCustomModelData(artifact.getCustomModelData());
-
-        // Item model (1.21.3+)
-        if (VersionUtil.supportsItemModel()) {
-            setItemModelSafe(meta, "artifacts:" + artifact.getItemModelKey());
-        }
-
-        // Special flags for specific items
-        if (artifact == ArtifactItem.UMBRELLA) {
-            meta.setUnbreakable(true);
-            meta.addItemFlags(ItemFlag.HIDE_UNBREAKABLE);
-        } else if (artifact == ArtifactItem.EVERLASTING_BEEF || artifact == ArtifactItem.ETERNAL_STEAK) {
-            // Attempt to set MaxStackSize natively (1.20.5+)
-            try {
-                java.lang.reflect.Method setMaxStackSize = meta.getClass().getMethod("setMaxStackSize", int.class);
-                setMaxStackSize.invoke(meta, 1);
-            } catch (Exception e) {
-                // Fallback for older versions: add a random UUID to NBT so they won't stack
-                meta.getPersistentDataContainer().set(
-                        new NamespacedKey(plugin, "unstackable_id"),
-                        org.bukkit.persistence.PersistentDataType.STRING,
-                        java.util.UUID.randomUUID().toString());
+        if (SynthetixAPI.getOptional().isPresent()) {
+            ItemStack stack = SynthetixAPI.get().createItemStack(itemId);
+            if (stack != null) {
+                ArtifactItem artifact = ArtifactItem.fromId(itemId);
+                if (artifact != null && artifact.isCurio() && curiosApi != null) {
+                    stack = curiosApi.tagAccessoryItem(stack, artifact.getSlotType());
+                    if (artifact.has3DModel()) {
+                        stack = curiosApi.set3DModel(
+                                stack,
+                                artifact.getBaseMaterial(),
+                                artifact.get3DCustomModelData(),
+                                "artifacts:" + artifact.get3DItemModelKey(),
+                                artifact.getPitchUpLimit(),
+                                artifact.getPitchDownLimit()
+                        );
+                    }
+                }
+                return stack;
             }
         }
 
-        // Tag with curios_custom_id so CuriosPaper system recognizes it
-        meta.getPersistentDataContainer().set(api.getItemIdKey(),
-                org.bukkit.persistence.PersistentDataType.STRING, artifact.getId());
+        // Fallback manual builder if Synthetix is unavailable
+        ArtifactItem artifact = ArtifactItem.fromId(itemId);
+        if (artifact == null) return null;
+
+        ItemStack item = new ItemStack(artifact.getBaseMaterial());
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return item;
+
+        if (artifact.getDisplayName() != null) {
+            meta.displayName(TextUtil.parse(artifact.getDisplayName()));
+        }
+
+        if (artifact.getLore() != null) {
+            meta.lore(TextUtil.parseList(artifact.getLore()));
+        }
+        meta.setCustomModelData(artifact.getCustomModelData());
+
+        try {
+            java.lang.reflect.Method setItemModelMethod = meta.getClass().getMethod("setItemModel", org.bukkit.NamespacedKey.class);
+            setItemModelMethod.invoke(meta, new org.bukkit.NamespacedKey("artifacts", artifact.getItemModelKey()));
+        } catch (Throwable ignored) {
+        }
+
+        if (artifact == ArtifactItem.UMBRELLA) {
+            meta.setUnbreakable(true);
+            meta.addItemFlags(ItemFlag.HIDE_UNBREAKABLE);
+        }
+
+        if (curiosApi != null) {
+            meta.getPersistentDataContainer().set(curiosApi.getItemIdKey(),
+                    org.bukkit.persistence.PersistentDataType.STRING, artifact.getId());
+        }
 
         item.setItemMeta(meta);
 
-        // Tag as curio accessory if applicable
-        if (artifact.isCurio()) {
-            item = api.tagAccessoryItem(item, artifact.getSlotType());
+        if (artifact.isCurio() && curiosApi != null) {
+            item = curiosApi.tagAccessoryItem(item, artifact.getSlotType());
+            if (artifact.has3DModel()) {
+                item = curiosApi.set3DModel(
+                        item,
+                        artifact.getBaseMaterial(),
+                        artifact.get3DCustomModelData(),
+                        "artifacts:" + artifact.get3DItemModelKey(),
+                        artifact.getPitchUpLimit(),
+                        artifact.getPitchDownLimit()
+                );
+            }
         }
 
         return item;
     }
 
-    /**
-     * Create an ItemStack by item ID string.
-     */
-    public ItemStack createItemStack(String itemId) {
-        ArtifactItem artifact = ArtifactItem.fromId(itemId);
-        if (artifact == null)
-            return null;
-        return createItemStack(artifact);
-    }
-
-    /**
-     * Set the item model via reflection for 1.21.3+ compatibility.
-     */
-    @SuppressWarnings("deprecation")
-    private void setItemModelSafe(ItemMeta meta, String modelPath) {
-        try {
-            if (!setItemModelMethodChecked) {
-                setItemModelMethodChecked = true;
-                Class<?> itemMetaClass = Class.forName("org.bukkit.inventory.meta.ItemMeta");
-                setItemModelMethod = itemMetaClass.getMethod("setItemModel", NamespacedKey.class);
-            }
-            if (setItemModelMethod != null) {
-                String[] parts = modelPath.split(":", 2);
-                NamespacedKey key;
-                if (parts.length == 2) {
-                    key = new NamespacedKey(parts[0], parts[1]);
-                } else {
-                    key = new NamespacedKey("artifacts", parts[0]);
-                }
-                setItemModelMethod.invoke(meta, key);
-            }
-        } catch (Exception e) {
-            // Silently fall back to CMD-only
-        }
+    public CuriosPaperAPI getCuriosPaperApi() {
+        return curiosApi;
     }
 }

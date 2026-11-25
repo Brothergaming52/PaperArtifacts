@@ -56,6 +56,9 @@ public final class Artifacts extends JavaPlugin {
 
         @Override
         public void onEnable() {
+                // Initialize unified Folia/Paper cross-platform scheduler
+                new org.bg52.artifacts.scheduler.PlatformScheduler(this);
+
                 getLogger().info("Artifacts enabling on MC " + VersionUtil.getVersionString() + "...");
 
                 CuriosPaper curiosPaper = CuriosPaper.getInstance();
@@ -92,13 +95,14 @@ public final class Artifacts extends JavaPlugin {
                 // Initialize cooldown manager
                 cooldownManager = new CooldownManager();
 
-                // Register resource pack assets from this JAR
-                curiosPaperAPI.registerResourcePackAssetsFromJar(this);
+                // Register resource pack assets with Synthetix
+                org.bg52.artifacts.util.ResourcePackExtractor.extractAndRegister(this);
 
                 // Register a new Slot
-                curiosPaperAPI.registerSlot("feet", ChatColor.GOLD + "Feet", Material.IRON_BOOTS, "artifacts:feet",
-                                201100, 1,
-                                Arrays.asList("&7Feet accessary items Slot"), 15);
+                curiosPaperAPI.registerSlot(new org.bg52.curiospaper.slot.SlotDefinition(
+                                "feet", "<gold>Feet</gold>", Material.IRON_BOOTS, "curiospaper:feet_slot",
+                                10010, 15, 1, 1, "curiospaper.slot.feet",
+                                Arrays.asList("&7Feet accessory items Slot"), null, null));
 
                 // Initialize item registry and register all artifact items
                 itemRegistry = new ItemRegistry(this, curiosPaperAPI);
@@ -119,7 +123,7 @@ public final class Artifacts extends JavaPlugin {
                 getServer().getPluginManager().registerEvents(
                                 new MimicCleanupListener(this, mimicManager), this);
                 getServer().getPluginManager().registerEvents(
-                                new SlimeballListener(), this);
+                                new SlimeballListener(this, mimicManager), this);
 
                 // ── Register Artifact Item Listeners ──
 
@@ -212,6 +216,10 @@ public final class Artifacts extends JavaPlugin {
                 striderShoesListener = new StriderShoesListener(this, curiosPaperAPI, artifactConfig);
                 getServer().getPluginManager().registerEvents(striderShoesListener, this);
 
+        // Drop Filtering — prevent disabled artifacts from dropping
+        getServer().getPluginManager().registerEvents(
+                new org.bg52.artifacts.listener.ArtifactDropFilterListener(this), this);
+
                 // Register the block populator for all worlds
                 getServer().getWorlds().forEach(world -> world.getPopulators().add(populator));
 
@@ -259,6 +267,9 @@ public final class Artifacts extends JavaPlugin {
                 if (striderShoesListener != null)
                         striderShoesListener.shutdown();
 
+                if (rootedBootsListener != null)
+                        rootedBootsListener.shutdown();
+
                 if (populator != null) {
                         getServer().getWorlds().forEach(world -> world.getPopulators().remove(populator));
                 }
@@ -268,6 +279,8 @@ public final class Artifacts extends JavaPlugin {
                         mimicManager.shutdown();
                         getLogger().info("Artifacts disabled. Cleaned up " + count + " active mimics.");
                 }
+
+                org.bg52.artifacts.scheduler.PlatformScheduler.get().cancelTasks();
         }
 
         public MimicManager getMimicManager() {
@@ -302,11 +315,25 @@ public final class Artifacts extends JavaPlugin {
                 return campsiteConfig;
         }
 
+    public CampsitePopulator getPopulator() {
+        return populator;
+    }
+
         public PassiveArtifactsListener getPassiveArtifactsListener() {
                 return passiveArtifactsListener;
         }
 
+        public CooldownManager getCooldownManager() {
+                return cooldownManager;
+        }
+
         private void checkAndSetupGeyserIntegration() {
+                org.bg52.artifacts.scheduler.PlatformScheduler.get().runAsync(() -> {
+                        setupGeyserFiles();
+                });
+        }
+
+        private void setupGeyserFiles() {
                 // 1. Always extract to plugins/Artifacts/geyser/
                 java.io.File localGeyserFolder = new java.io.File(getDataFolder(), "geyser");
                 if (!localGeyserFolder.exists()) {

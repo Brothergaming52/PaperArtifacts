@@ -9,6 +9,8 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityPotionEffectEvent;
 import org.bukkit.potion.PotionEffect;
+import org.bukkit.Particle;
+import org.bukkit.Sound;
 import org.bukkit.potion.PotionEffectType;
 
 public class NegativeEffectListener implements Listener {
@@ -27,12 +29,11 @@ public class NegativeEffectListener implements Listener {
         if (event.getModifiedType() != PotionEffectType.POISON &&
                 event.getModifiedType() != PotionEffectType.WITHER &&
                 event.getModifiedType() != PotionEffectType.HUNGER &&
-                event.getModifiedType() != PotionEffectType.SLOW &&
-                event.getModifiedType() != PotionEffectType.SLOW_DIGGING &&
-                event.getModifiedType() != PotionEffectType.CONFUSION &&
+                event.getModifiedType() != PotionEffectType.SLOWNESS &&
+                event.getModifiedType() != PotionEffectType.MINING_FATIGUE &&
+                event.getModifiedType() != PotionEffectType.NAUSEA &&
                 event.getModifiedType() != PotionEffectType.BLINDNESS &&
-                event.getModifiedType() != PotionEffectType.WEAKNESS &&
-                event.getModifiedType() != PotionEffectType.POISON) {
+                event.getModifiedType() != PotionEffectType.WEAKNESS) {
             return;
         }
 

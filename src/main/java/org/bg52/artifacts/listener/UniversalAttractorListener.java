@@ -14,6 +14,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.Particle;
 import org.bukkit.util.Vector;
 
 public class UniversalAttractorListener implements Listener {
@@ -55,11 +56,15 @@ public class UniversalAttractorListener implements Listener {
                     double speed = 0.35;
                     direction.normalize().multiply(speed);
                     item.setVelocity(direction);
+                    if (plugin.getArtifactConfig().isParticlesEnabled()) {
+                        item.getWorld().spawnParticle(Particle.PORTAL, item.getLocation().add(0.0, 0.2, 0.0), 2, 0.05, 0.05, 0.05, 0.02);
+                    }
                 }
             }
         }
     }
 
+    @EventHandler
     public void onItemDrop(PlayerDropItemEvent event) {
         if (!plugin.getArtifactConfig().isItemEnabled("universal_attractor"))
             return;

@@ -3,6 +3,7 @@ package org.bg52.artifacts.util;
 import com.google.gson.JsonArray;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bg52.artifacts.scheduler.PlatformScheduler;
 
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
@@ -58,7 +59,7 @@ public class UpdateChecker {
                             }
 
                             // Notify online admins
-                            Bukkit.getScheduler().runTask(plugin, () -> {
+                            PlatformScheduler.get().runGlobal(() -> {
                                 for (org.bukkit.entity.Player player : Bukkit.getOnlinePlayers()) {
                                     if (player.hasPermission("artifacts.admin")) {
                                         player.sendMessage(statusMsg);

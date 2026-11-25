@@ -6,7 +6,7 @@ import org.bg52.artifacts.manager.ArtifactConfigManager;
 import org.bg52.artifacts.util.ArtifactUtil;
 import org.bg52.artifacts.util.VersionUtil;
 import org.bg52.curiospaper.api.CuriosPaperAPI;
-import org.bg52.curiospaper.event.AccessoryEquipEvent;
+import org.bg52.curiospaper.api.event.AccessoryEquipEvent;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.attribute.Attribute;
@@ -18,8 +18,10 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.Particle;
 import org.bukkit.event.player.PlayerToggleSprintEvent;
 import org.bukkit.util.Vector;
+import org.bg52.artifacts.scheduler.PlatformScheduler;
 
 import java.util.UUID;
 import java.util.ArrayList;
@@ -69,7 +71,7 @@ public class RunningShoesListener implements Listener {
 
         if (isRunningShoes) {
             // Run on next tick to ensure hasEquipped is accurate
-            plugin.getServer().getScheduler().runTask(plugin, () -> {
+            PlatformScheduler.get().runEntity(player, () -> {
                 if (player.isOnline()) {
                     updateShoesEffect(player, player.isSprinting());
                 }
@@ -149,8 +151,6 @@ public class RunningShoesListener implements Listener {
      */
     @EventHandler
     public void onPlayerMove(PlayerMoveEvent event) {
-        if (VersionUtil.getStepHeightAttribute() != null) return; // Modern version handles this via attributes
-
         Player player = event.getPlayer();
         if (!player.isSprinting()) return;
         if (!config.isItemEnabled("running_shoes")) return;
@@ -162,7 +162,15 @@ public class RunningShoesListener implements Listener {
 
         // Ensure horizontal movement
         if (from.getX() == to.getX() && from.getZ() == to.getZ()) return;
-        
+
+        if (config.isParticlesEnabled() && Math.random() < 0.4) {
+            Location feet = player.getLocation().add(0.0, 0.05, 0.0);
+            player.getWorld().spawnParticle(Particle.CLOUD, feet, 1, 0.1, 0.02, 0.1, 0.02);
+            player.getWorld().spawnParticle(Particle.CRIT, feet, 1, 0.15, 0.05, 0.15, 0.05);
+        }
+
+        if (VersionUtil.getStepHeightAttribute() != null) return; // Modern version handles this via attributes
+
         // Horizontal distance
         double dx = to.getX() - from.getX();
         double dz = to.getZ() - from.getZ();

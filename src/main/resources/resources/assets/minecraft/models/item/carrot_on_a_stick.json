@@ -8,37 +8,43 @@
             "predicate": {
                 "custom_model_data": 201001
             },
-            "model": "artifacts:item/mimic_attacked_dormant"
+            "model": "artifacts:item/mimic_bottom"
         },
         {
             "predicate": {
                 "custom_model_data": 201002
             },
-            "model": "artifacts:item/mimic_attacked_hurt"
-        },
-        {
-            "predicate": {
-                "custom_model_data": 201003
-            },
-            "model": "artifacts:item/mimic_attacked_jumping"
+            "model": "artifacts:item/mimic_lid"
         },
         {
             "predicate": {
                 "custom_model_data": 201004
             },
-            "model": "artifacts:item/mimic_dormant"
+            "model": "artifacts:item/mimic_bottom"
         },
         {
             "predicate": {
                 "custom_model_data": 201005
             },
-            "model": "artifacts:item/mimic_hurt"
+            "model": "artifacts:item/mimic_bottom"
         },
         {
             "predicate": {
                 "custom_model_data": 201006
             },
-            "model": "artifacts:item/mimic_jumping"
+            "model": "artifacts:item/mimic_bottom"
+        },
+        {
+            "predicate": {
+                "custom_model_data": 201010
+            },
+            "model": "artifacts:item/mimic_bottom"
+        },
+        {
+            "predicate": {
+                "custom_model_data": 201011
+            },
+            "model": "artifacts:item/mimic_lid"
         },
         {
             "predicate": {
@@ -278,7 +284,7 @@
             "predicate": {
                 "custom_model_data": 201053
             },
-            "model": "artifacts:item/woopee_cushion"
+            "model": "artifacts:item/whoopee_cushion"
         },
         {
             "predicate": {

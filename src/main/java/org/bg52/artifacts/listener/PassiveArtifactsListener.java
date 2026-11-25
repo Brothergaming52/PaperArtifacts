@@ -5,11 +5,12 @@ import org.bg52.artifacts.item.ArtifactItem;
 import org.bg52.artifacts.util.ArtifactUtil;
 import org.bg52.artifacts.util.VersionUtil;
 import org.bg52.curiospaper.api.CuriosPaperAPI;
-import org.bg52.curiospaper.event.AccessoryEquipEvent;
+import org.bg52.curiospaper.api.event.AccessoryEquipEvent;
 import org.bukkit.Bukkit;
 import org.bukkit.EntityEffect;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.attribute.Attribute;
@@ -38,8 +39,10 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.util.Vector;
+import org.bg52.artifacts.scheduler.PlatformScheduler;
 
 import java.util.UUID;
+import java.lang.reflect.Method;
 import java.io.File;
 import java.util.List;
 import java.util.ArrayList;
@@ -300,7 +303,7 @@ public class PassiveArtifactsListener implements Listener {
             player.getWorld().playSound(player.getLocation(), Sound.ITEM_CHORUS_FRUIT_TELEPORT, 1.0f, 1.0f);
 
             // Delay teleport by 1 tick to ensure resurrection completes first
-            Bukkit.getScheduler().runTask(plugin, () -> {
+            PlatformScheduler.get().runEntity(player, () -> {
                 player.teleport(safeLocation, PlayerTeleportEvent.TeleportCause.CHORUS_FRUIT);
                 player.getWorld().playSound(safeLocation, Sound.ITEM_CHORUS_FRUIT_TELEPORT, 1.0f, 1.0f);
             });
@@ -311,7 +314,7 @@ public class PassiveArtifactsListener implements Listener {
         ItemStack MainHandItem = player.getInventory().getItemInMainHand();
         player.getInventory().setItemInMainHand(totem);
         player.playEffect(EntityEffect.TOTEM_RESURRECT);
-        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+        PlatformScheduler.get().runEntityLater(player, () -> {
             player.getInventory().setItemInMainHand(MainHandItem);
         }, 1L);
     }
@@ -467,7 +470,7 @@ public class PassiveArtifactsListener implements Listener {
                 }
 
                 final boolean finalWasWaterlogged = wasWaterlogged;
-                Bukkit.getScheduler().runTask(plugin, () -> {
+                PlatformScheduler.get().runLocation(loc, () -> {
                     World world = loc.getWorld();
                     if (world == null)
                         return;
@@ -553,15 +556,19 @@ public class PassiveArtifactsListener implements Listener {
                 if (plugin.getArtifactConfig().isItemEnabled("warp_drive") &&
                         ArtifactUtil.hasEquipped(player, ArtifactItem.WARP_DRIVE, api)) {
 
-                    int cost = plugin.getArtifactConfig().getWarpDriveHungerCost();
-                    if (player.getFoodLevel() < cost) {
-                        // Normal interaction: don't cancel, don't add back.
+                    if (player.getFoodLevel() <= 0) {
+                        // Hunger is completely depleted: warp drive stops working, pearls decrease and damage is taken
                         return;
                     }
 
+                    int cost = plugin.getArtifactConfig().getWarpDriveHungerCost();
                     player.setFoodLevel(Math.max(0, player.getFoodLevel() - cost));
 
-                    Bukkit.getScheduler().runTask(plugin, () -> {
+                    // Tag the pearl as warp drive active to cancel its teleport damage
+                    event.getEntity().setMetadata("warp_drive_pearl",
+                            new org.bukkit.metadata.FixedMetadataValue(plugin, true));
+
+                    PlatformScheduler.get().runEntity(player, () -> {
                         player.getInventory().addItem(new ItemStack(Material.ENDER_PEARL, 1));
                     });
                 }
@@ -573,14 +580,11 @@ public class PassiveArtifactsListener implements Listener {
     public void onProjectileHit(org.bukkit.event.entity.ProjectileHitEvent event) {
         if (event.getEntity() instanceof EnderPearl) {
             EnderPearl pearl = (EnderPearl) event.getEntity();
-            if (pearl.getShooter() instanceof Player) {
+            if (pearl.hasMetadata("warp_drive_pearl") && pearl.getShooter() instanceof Player) {
                 Player player = (Player) pearl.getShooter();
-                if (plugin.getArtifactConfig().isItemEnabled("warp_drive") &&
-                        ArtifactUtil.hasEquipped(player, ArtifactItem.WARP_DRIVE, api)) {
-                    warpDriveNoDamage.add(player.getUniqueId());
-                    // We also keep it in onPlayerTeleport, but this covers us if damage happens
-                    // before teleport
-                }
+                warpDriveNoDamage.add(player.getUniqueId());
+                PlatformScheduler.get().runEntityLater(player,
+                        () -> warpDriveNoDamage.remove(player.getUniqueId()), 10L);
             }
         }
     }
@@ -588,14 +592,8 @@ public class PassiveArtifactsListener implements Listener {
     @EventHandler
     public void onPlayerTeleport(PlayerTeleportEvent event) {
         if (event.getCause() == PlayerTeleportEvent.TeleportCause.ENDER_PEARL) {
-            if (plugin.getArtifactConfig().isItemEnabled("warp_drive") &&
-                    ArtifactUtil.hasEquipped(event.getPlayer(), ArtifactItem.WARP_DRIVE, api)) {
-                warpDriveNoDamage.add(event.getPlayer().getUniqueId());
-                // Keep for a few ticks to ensure we catch the damage event which might be
-                // slightly delayed
-                Bukkit.getScheduler().runTaskLater(plugin,
-                        () -> warpDriveNoDamage.remove(event.getPlayer().getUniqueId()), 5L);
-            }
+            Player player = event.getPlayer();
+            // Retain warpDriveNoDamage if already added by onProjectileHit
         }
     }
 
@@ -825,14 +823,27 @@ public class PassiveArtifactsListener implements Listener {
         }
     }
 
-    @EventHandler
-    public void onWarpDriveDamage(EntityDamageByEntityEvent event) {
+    @EventHandler(priority = EventPriority.LOW)
+    public void onWarpDriveDamage(EntityDamageEvent event) {
         if (!(event.getEntity() instanceof Player))
             return;
         Player player = (Player) event.getEntity();
 
-        if (event.getDamager() instanceof EnderPearl) {
-            if (warpDriveNoDamage.contains(player.getUniqueId())) {
+        if (event.getCause() == EntityDamageEvent.DamageCause.FALL) {
+            if (warpDriveNoDamage.remove(player.getUniqueId())) {
+                event.setCancelled(true);
+            }
+        }
+    }
+
+    @EventHandler(priority = EventPriority.LOW)
+    public void onWarpDriveDamageByEntity(EntityDamageByEntityEvent event) {
+        if (!(event.getEntity() instanceof Player))
+            return;
+        Player player = (Player) event.getEntity();
+
+        if (event.getDamager() instanceof EnderPearl || event.getCause() == EntityDamageEvent.DamageCause.FALL) {
+            if (warpDriveNoDamage.remove(player.getUniqueId())) {
                 event.setCancelled(true);
             }
         }

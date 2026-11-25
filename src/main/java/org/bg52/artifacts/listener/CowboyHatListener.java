@@ -4,7 +4,7 @@ import org.bg52.artifacts.Artifacts;
 import org.bg52.artifacts.item.ArtifactItem;
 import org.bg52.artifacts.util.ArtifactUtil;
 import org.bg52.curiospaper.api.CuriosPaperAPI;
-import org.bg52.curiospaper.event.AccessoryEquipEvent;
+import org.bg52.curiospaper.api.event.AccessoryEquipEvent;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
@@ -13,6 +13,8 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.vehicle.VehicleEnterEvent;
 import org.bukkit.potion.PotionEffect;
+import org.bukkit.Particle;
+import org.bukkit.Sound;
 import org.bukkit.potion.PotionEffectType;
 
 /**
@@ -41,7 +43,7 @@ public class CowboyHatListener implements Listener {
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onEntityMount(org.spigotmc.event.entity.EntityMountEvent event) {
+    public void onEntityMount(org.bukkit.event.entity.EntityMountEvent event) {
         if (!(event.getEntity() instanceof Player))
             return;
         Player player = (Player) event.getEntity();
@@ -56,7 +58,7 @@ public class CowboyHatListener implements Listener {
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onEntityDismount(org.spigotmc.event.entity.EntityDismountEvent event) {
+    public void onEntityDismount(org.bukkit.event.entity.EntityDismountEvent event) {
         if (!(event.getEntity() instanceof Player))
             return;
         removeMountSpeed(event.getDismounted());
@@ -105,6 +107,18 @@ public class CowboyHatListener implements Listener {
                     false,
                     false);
             mount.addPotionEffect(speed);
+
+            if (plugin.getArtifactConfig().isParticlesEnabled()) {
+                try {
+                    mount.getWorld().spawnParticle(Particle.CAMPFIRE_COSY_SMOKE, mount.getLocation().add(0.0, 0.2, 0.0), 6, 0.3, 0.1, 0.3, 0.01);
+                } catch (Throwable ignored) {
+                    mount.getWorld().spawnParticle(Particle.CLOUD, mount.getLocation().add(0.0, 0.2, 0.0), 4, 0.2, 0.1, 0.2, 0.02);
+                }
+            }
+
+            if (plugin.getArtifactConfig().isSoundsEnabled()) {
+                player.getWorld().playSound(mount.getLocation(), Sound.ENTITY_HORSE_GALLOP, 0.7f, 1.3f);
+            }
         }
     }
 

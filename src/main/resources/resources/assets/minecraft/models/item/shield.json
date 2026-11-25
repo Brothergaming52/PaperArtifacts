@@ -6,10 +6,9 @@
     "overrides": [
         {
             "predicate": {
-                "custom_model_data": 201010,
                 "blocking": 1
             },
-            "model": "artifacts:item/umbrella_held_blocking"
+            "model": "item/shield_blocking"
         },
         {
             "predicate": {
@@ -19,9 +18,10 @@
         },
         {
             "predicate": {
+                "custom_model_data": 201010,
                 "blocking": 1
             },
-            "model": "item/shield_blocking"
+            "model": "artifacts:item/umbrella_held_blocking"
         }
     ],
     "display": {

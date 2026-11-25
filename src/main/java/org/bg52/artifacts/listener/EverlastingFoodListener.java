@@ -11,9 +11,12 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.inventory.FurnaceSmeltEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.Particle;
+import org.bukkit.Sound;
 import org.bukkit.event.player.PlayerItemConsumeEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bg52.artifacts.scheduler.PlatformScheduler;
 
 import java.util.UUID;
 
@@ -98,14 +101,11 @@ public class EverlastingFoodListener implements Listener {
         final boolean mainHand = ArtifactUtil.isArtifact(
                 player.getInventory().getItemInMainHand(), artifact);
 
-        plugin.getServer().getScheduler().runTaskLater(plugin, new Runnable() {
-            @Override
-            public void run() {
-                if (mainHand) {
-                    finalPlayer.getInventory().setItemInMainHand(originalItem);
-                } else {
-                    finalPlayer.getInventory().setItemInOffHand(originalItem);
-                }
+        PlatformScheduler.get().runEntityLater(player, () -> {
+            if (mainHand) {
+                finalPlayer.getInventory().setItemInMainHand(originalItem);
+            } else {
+                finalPlayer.getInventory().setItemInOffHand(originalItem);
             }
         }, 1L);
     }

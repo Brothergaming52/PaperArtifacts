@@ -13,7 +13,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
-import org.bukkit.scheduler.BukkitRunnable;
+import org.bg52.artifacts.scheduler.PlatformScheduler;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -83,7 +83,7 @@ public class SinkingListener implements Listener {
 
                 SinkingTask task = new SinkingTask(player, initialFall);
                 activeTasks.put(player.getUniqueId(), task);
-                task.runTaskTimer(plugin, 1L, 1L);
+                task.setTaskHandle(PlatformScheduler.get().runEntityTimer(player, task, 1L, 1L));
             }
         }
     }
@@ -107,11 +107,12 @@ public class SinkingListener implements Listener {
                 || type == Material.KELP_PLANT;
     }
 
-    private class SinkingTask extends BukkitRunnable {
+    private class SinkingTask implements Runnable {
         private final Player player;
         private double fallDistance = 0;
         private double lastY;
         private boolean wasOnGround = true;
+        private PlatformScheduler.TaskHandle taskHandle;
 
         private final Set<Location> ghostBlocks = new HashSet<>();
 
@@ -119,6 +120,18 @@ public class SinkingListener implements Listener {
             this.player = player;
             this.fallDistance = initialFall > 0 ? initialFall : player.getFallDistance();
             this.lastY = player.getLocation().getY();
+        }
+
+        public void setTaskHandle(PlatformScheduler.TaskHandle taskHandle) {
+            this.taskHandle = taskHandle;
+        }
+
+        public void cancel() {
+            if (taskHandle != null) {
+                taskHandle.cancel();
+                taskHandle = null;
+            }
+            restoreGhostBlocks();
         }
 
         private void restoreGhostBlocks() {
@@ -135,7 +148,7 @@ public class SinkingListener implements Listener {
                     || !configManager.isItemEnabled(ArtifactItem.CHARM_OF_SINKING.getId())) {
                 restoreGhostBlocks();
                 activeTasks.remove(player.getUniqueId());
-                this.cancel();
+                cancel();
                 return;
             }
 
@@ -207,16 +220,11 @@ public class SinkingListener implements Listener {
                 if (!wasOnGround) {
                     if (fallDistance > 3.0) {
                         double damage = fallDistance - 3.0;
-
-                        EntityDamageEvent damageEvent = new EntityDamageEvent(player,
-                                EntityDamageEvent.DamageCause.FALL, damage);
-                        plugin.getServer().getPluginManager().callEvent(damageEvent);
-
-                        if (!damageEvent.isCancelled()) {
-                            player.setLastDamageCause(damageEvent);
-                            // Passing this back into player.damage() will natively trigger armor/enchant
-                            // reductions
-                            player.damage(damageEvent.getFinalDamage());
+                        try {
+                            org.bukkit.damage.DamageSource source = org.bukkit.damage.DamageSource.builder(org.bukkit.damage.DamageType.FALL).build();
+                            player.damage(damage, source);
+                        } catch (Throwable t) {
+                            player.damage(damage);
                         }
                     }
                     fallDistance = 0;

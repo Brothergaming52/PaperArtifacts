@@ -6,6 +6,9 @@ import org.bg52.artifacts.manager.ArtifactConfigManager;
 import org.bg52.artifacts.util.ArtifactUtil;
 import org.bg52.curiospaper.api.CuriosPaperAPI;
 import org.bukkit.GameMode;
+import org.bukkit.Location;
+import org.bukkit.Particle;
+import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -14,6 +17,7 @@ import org.bukkit.event.player.PlayerToggleSprintEvent;
 import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
+import org.bg52.artifacts.scheduler.PlatformScheduler;
 import org.bukkit.util.Vector;
 
 import net.md_5.bungee.api.ChatMessageType;
@@ -30,10 +34,12 @@ public class HeliumFlamingoListener implements Listener {
     private static final char FLAMINGO_BURST = '\uE522';
     private static final char FLAMINGO_EMPTY = '\uE523';
     private static final int BAR_SIZE = 10;
+    private static final String HIDE_MODELS_METADATA = "curios_hide_models";
 
     private final Artifacts plugin;
     private final CuriosPaperAPI api;
     private final ArtifactConfigManager configManager;
+    private PlatformScheduler.TaskHandle groundCheckTask;
 
     private final Map<UUID, FlamingoState> playerStates = new HashMap<>();
 
@@ -41,6 +47,27 @@ public class HeliumFlamingoListener implements Listener {
         this.plugin = plugin;
         this.api = api;
         this.configManager = configManager;
+
+        this.groundCheckTask = PlatformScheduler.get().runGlobalTimer(() -> {
+            for (Player player : plugin.getServer().getOnlinePlayers()) {
+                PlatformScheduler.get().runEntity(player, () -> {
+                    if (player.getGameMode() == GameMode.CREATIVE || player.getGameMode() == GameMode.SPECTATOR) {
+                        return;
+                    }
+
+                    if (player.isOnGround()) {
+                        FlamingoState state = playerStates.get(player.getUniqueId());
+                        boolean canFly = configManager.isItemEnabled(ArtifactItem.HELIUM_FLAMINGO.getId())
+                                && ArtifactUtil.hasEquipped(player, ArtifactItem.HELIUM_FLAMINGO, api)
+                                && (state == null || state.phase == Phase.READY);
+
+                        if (canFly) {
+                            player.setAllowFlight(true);
+                        }
+                    }
+                });
+            }
+        }, 4L, 4L);
     }
 
     private enum Phase {
@@ -55,7 +82,7 @@ public class HeliumFlamingoListener implements Listener {
         int cooldownTicksRemaining;
         int totalUseTicks;
         int totalCooldownTicks;
-        BukkitTask tickTask;
+        PlatformScheduler.TaskHandle tickTask;
 
         int lastFullCount = BAR_SIZE;
         int burstTicksRemaining = 0;
@@ -63,6 +90,40 @@ public class HeliumFlamingoListener implements Listener {
         // FIX 1: Track previous flight state to prevent altering survival/creative
         // setups
         boolean previousAllowFlight = false;
+    }
+
+    @EventHandler
+    public void onDoubleJump(org.bukkit.event.player.PlayerToggleFlightEvent event) {
+        if (!configManager.isItemEnabled(ArtifactItem.HELIUM_FLAMINGO.getId()))
+            return;
+
+        Player player = event.getPlayer();
+
+        if (player.getGameMode() == GameMode.CREATIVE || player.getGameMode() == GameMode.SPECTATOR)
+            return;
+
+        if (!ArtifactUtil.hasEquipped(player, ArtifactItem.HELIUM_FLAMINGO, api))
+            return;
+
+        UUID uuid = player.getUniqueId();
+        FlamingoState state = playerStates.get(uuid);
+
+        if (state != null && state.phase == Phase.FLYING) {
+            event.setCancelled(true);
+            stopFlying(player, state);
+            return;
+        }
+
+        if (state != null && state.phase == Phase.COOLDOWN) {
+            event.setCancelled(true);
+            player.setAllowFlight(false);
+            player.setFlying(false);
+            return;
+        }
+
+        event.setCancelled(true);
+        player.setFlying(false);
+        activateFlying(player);
     }
 
     @EventHandler
@@ -118,36 +179,37 @@ public class HeliumFlamingoListener implements Listener {
 
         // FIX 1: Gliding forces the horizontal pose in the air. Swimming does not.
         player.setGliding(true);
-        player.setMetadata(CuriosPaperAPI.HIDE_MODELS_METADATA, new FixedMetadataValue(plugin, true));
+        player.setMetadata(HIDE_MODELS_METADATA, new FixedMetadataValue(plugin, true));
 
-        state.tickTask = new BukkitRunnable() {
-            @Override
-            public void run() {
-                if (!player.isOnline() || player.isDead()) {
-                    cleanupPlayer(uuid);
-                    return;
-                }
+        if (configManager.isSoundsEnabled()) {
+            player.getWorld().playSound(player.getLocation(), Sound.ENTITY_BAT_TAKEOFF, 0.8f, 1.4f);
+        }
 
-                FlamingoState current = playerStates.get(uuid);
-                if (current == null) {
-                    this.cancel();
-                    return;
-                }
-
-                if (current.phase == Phase.FLYING) {
-                    if (!ArtifactUtil.hasEquipped(player, ArtifactItem.HELIUM_FLAMINGO, api)
-                            || !configManager.isItemEnabled(ArtifactItem.HELIUM_FLAMINGO.getId())) {
-                        stopFlying(player, current);
-                    } else {
-                        tickFlying(player, current);
-                    }
-                } else if (current.phase == Phase.COOLDOWN) {
-                    tickCooldown(player, current);
-                } else {
-                    this.cancel();
-                }
+        state.tickTask = PlatformScheduler.get().runEntityTimer(player, () -> {
+            if (!player.isOnline() || player.isDead()) {
+                cleanupPlayer(uuid);
+                return;
             }
-        }.runTaskTimer(plugin, 1L, 1L);
+
+            FlamingoState current = playerStates.get(uuid);
+            if (current == null) {
+                if (state.tickTask != null) state.tickTask.cancel();
+                return;
+            }
+
+            if (current.phase == Phase.FLYING) {
+                if (!ArtifactUtil.hasEquipped(player, ArtifactItem.HELIUM_FLAMINGO, api)
+                        || !configManager.isItemEnabled(ArtifactItem.HELIUM_FLAMINGO.getId())) {
+                    stopFlying(player, current);
+                } else {
+                    tickFlying(player, current);
+                }
+            } else if (current.phase == Phase.COOLDOWN) {
+                tickCooldown(player, current);
+            } else {
+                if (state.tickTask != null) state.tickTask.cancel();
+            }
+        }, 1L, 1L);
     }
 
     private void tickFlying(Player player, FlamingoState state) {
@@ -169,6 +231,12 @@ public class HeliumFlamingoListener implements Listener {
         Vector direction = player.getLocation().getDirection().normalize().multiply(0.3);
         player.setVelocity(direction);
 
+        if (configManager.isParticlesEnabled() && state.useTicksRemaining % 2 == 0) {
+            Location trail = player.getLocation().add(0, 0.5, 0).subtract(player.getLocation().getDirection().multiply(0.5));
+            player.getWorld().spawnParticle(Particle.BUBBLE, trail, 2, 0.15, 0.15, 0.15, 0.02);
+            player.getWorld().spawnParticle(Particle.CLOUD, trail, 1, 0.1, 0.1, 0.1, 0.01);
+        }
+
         state.useTicksRemaining--;
         sendBar(player, state);
 
@@ -187,6 +255,9 @@ public class HeliumFlamingoListener implements Listener {
             if (state.tickTask != null) {
                 state.tickTask.cancel();
             }
+            if (configManager.isSoundsEnabled() && player.isOnline()) {
+                player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 0.6f, 1.8f);
+            }
         }
     }
 
@@ -194,7 +265,7 @@ public class HeliumFlamingoListener implements Listener {
         // FIX 1: Remove glide and restore original flight rules
         player.setGliding(false);
         player.setAllowFlight(state.previousAllowFlight);
-        player.removeMetadata(CuriosPaperAPI.HIDE_MODELS_METADATA, plugin);
+        player.removeMetadata(HIDE_MODELS_METADATA, plugin);
 
         state.phase = Phase.COOLDOWN;
 
@@ -275,12 +346,15 @@ public class HeliumFlamingoListener implements Listener {
                 // FIX 1: Clean up pose and flight logic
                 player.setGliding(false);
                 player.setAllowFlight(state.previousAllowFlight);
-                player.removeMetadata(CuriosPaperAPI.HIDE_MODELS_METADATA, plugin);
+                player.removeMetadata(HIDE_MODELS_METADATA, plugin);
             }
         }
     }
 
     public void shutdown() {
+        if (groundCheckTask != null) {
+            groundCheckTask.cancel();
+        }
         Iterator<Map.Entry<UUID, FlamingoState>> it = playerStates.entrySet().iterator();
         while (it.hasNext()) {
             Map.Entry<UUID, FlamingoState> entry = it.next();
@@ -293,7 +367,7 @@ public class HeliumFlamingoListener implements Listener {
                 // FIX 1: Clean up pose and flight logic
                 player.setGliding(false);
                 player.setAllowFlight(state.previousAllowFlight);
-                player.removeMetadata(CuriosPaperAPI.HIDE_MODELS_METADATA, plugin);
+                player.removeMetadata(HIDE_MODELS_METADATA, plugin);
             }
             it.remove();
         }

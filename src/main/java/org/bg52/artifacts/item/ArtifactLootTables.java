@@ -1,54 +1,48 @@
 package org.bg52.artifacts.item;
 
 import org.bg52.artifacts.Artifacts;
-import org.bg52.curiospaper.data.LootTableData;
+import org.bg52.synthetix.distribution.LootTableRule;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
- * Defines loot tables for artifact items to be registered via the CuriosPaper
- * API. Reads configuration directly from loottables.yml.
+ * Defines loot table injection rules for artifact items, loaded from loottables.yml
+ * and registered directly into Synthetix's DistributionManager.
  */
 public class ArtifactLootTables {
 
-    /**
-     * Get a map of item IDs to their corresponding loot table data.
-     * 
-     * @param plugin The Artifacts plugin instance to access the data folder.
-     * @return Map of artifact ID to list of LootTableData
-     */
-    public static Map<String, List<LootTableData>> getLootTables(Artifacts plugin) {
-        Map<String, List<LootTableData>> lootTables = new HashMap<>();
+    public static List<LootTableRule> getLootTables(Artifacts plugin) {
+        List<LootTableRule> rules = new ArrayList<>();
 
         File configFile = new File(plugin.getDataFolder(), "loottables.yml");
         if (!configFile.exists()) {
             plugin.saveResource("loottables.yml", false);
         }
-        
+
         FileConfiguration config = YamlConfiguration.loadConfiguration(configFile);
 
         if (!config.getBoolean("loot-tables.enabled", true)) {
-            return lootTables;
+            return rules;
         }
 
         ConfigurationSection itemsSection = config.getConfigurationSection("items");
-        if (itemsSection == null) return lootTables;
+        if (itemsSection == null) return rules;
 
         for (String itemId : itemsSection.getKeys(false)) {
+            if (!plugin.getArtifactConfig().isItemEnabled(itemId)) {
+                continue;
+            }
             ConfigurationSection itemSection = itemsSection.getConfigurationSection(itemId);
             if (itemSection == null || !itemSection.getBoolean("enabled", true)) {
                 continue;
             }
 
-            List<LootTableData> tables = new ArrayList<>();
             List<Map<?, ?>> tablesList = itemSection.getMapList("tables");
+            int idx = 0;
             for (Map<?, ?> tableMap : tablesList) {
                 Boolean enabled = true;
                 if (tableMap.get("enabled") instanceof Boolean) {
@@ -56,7 +50,7 @@ public class ArtifactLootTables {
                 } else if (tableMap.get("enabled") instanceof String) {
                     enabled = Boolean.parseBoolean((String) tableMap.get("enabled"));
                 }
-                
+
                 if (!enabled) {
                     continue;
                 }
@@ -67,15 +61,20 @@ public class ArtifactLootTables {
                 Number max = (Number) tableMap.get("max");
 
                 if (tableId != null && chance != null && min != null && max != null) {
-                    tables.add(new LootTableData(tableId, chance.doubleValue(), min.intValue(), max.intValue()));
+                    String ruleId = "artifacts_" + itemId.toLowerCase(Locale.ROOT) + "_" + (++idx);
+                    rules.add(new LootTableRule(
+                            ruleId,
+                            "synth:" + itemId.toLowerCase(Locale.ROOT),
+                            Collections.singletonList(tableId),
+                            chance.doubleValue(),
+                            min.intValue(),
+                            max.intValue(),
+                            1
+                    ));
                 }
-            }
-
-            if (!tables.isEmpty()) {
-                lootTables.put(itemId, tables);
             }
         }
 
-        return lootTables;
+        return rules;
     }
 }

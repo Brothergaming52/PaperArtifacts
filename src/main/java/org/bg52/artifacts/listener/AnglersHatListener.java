@@ -10,8 +10,11 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerFishEvent;
+import org.bukkit.Particle;
+import org.bukkit.Sound;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bg52.artifacts.scheduler.PlatformScheduler;
 
 /**
  * Angler's Hat: Grants +1 Luck of the Sea and +1 Lure while fishing.
@@ -126,7 +129,7 @@ public class AnglersHatListener implements Listener {
         BoostData boost = new BoostData(hand, luckBonus, lureBonus);
         activeBoosts.computeIfAbsent(player.getUniqueId(), k -> new java.util.ArrayList<>()).add(boost);
 
-        org.bukkit.Bukkit.getScheduler().runTask(plugin, () -> {
+        PlatformScheduler.get().runEntity(player, () -> {
             java.util.List<BoostData> boosts = activeBoosts.remove(player.getUniqueId());
             if (boosts != null) {
                 for (BoostData b : boosts) {
@@ -146,6 +149,16 @@ public class AnglersHatListener implements Listener {
         if (boosts != null) {
             for (BoostData b : boosts) {
                 b.revert();
+            }
+        }
+
+        if (event.getState() == PlayerFishEvent.State.CAUGHT_FISH && ArtifactUtil.hasEquipped(player, ArtifactItem.ANGLERS_HAT, api)) {
+            if (plugin.getArtifactConfig().isParticlesEnabled() && event.getHook() != null) {
+                event.getHook().getWorld().spawnParticle(Particle.SPLASH, event.getHook().getLocation(), 15, 0.3, 0.3, 0.3, 0.1);
+                event.getHook().getWorld().spawnParticle(Particle.HAPPY_VILLAGER, event.getHook().getLocation().add(0.0, 0.5, 0.0), 6, 0.3, 0.3, 0.3, 0.0);
+            }
+            if (plugin.getArtifactConfig().isSoundsEnabled()) {
+                player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.7f, 1.7f);
             }
         }
     }

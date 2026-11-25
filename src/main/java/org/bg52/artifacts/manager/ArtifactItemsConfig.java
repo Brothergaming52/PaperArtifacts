@@ -2,7 +2,6 @@ package org.bg52.artifacts.manager;
 
 import org.bg52.artifacts.Artifacts;
 import org.bg52.artifacts.item.ArtifactItem;
-import org.bg52.curiospaper.data.AbilityData;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
@@ -115,28 +114,14 @@ public class ArtifactItemsConfig {
                     artifact.setPitchDownLimit((float) section.getDouble("pitch-down-limit"));
                 }
             }
-
-            // Abilities
-            List<AbilityData> abilitiesList = new ArrayList<>();
-            ConfigurationSection abilitiesSection = section.getConfigurationSection("abilities");
-            if (abilitiesSection != null) {
-                for (String abilityKey : abilitiesSection.getKeys(false)) {
-                    ConfigurationSection abilitySec = abilitiesSection.getConfigurationSection(abilityKey);
-                    if (abilitySec != null) {
-                        AbilityData ability = AbilityData.loadFromConfig(abilitySec);
-                        if (ability != null && ability.isValid()) {
-                            abilitiesList.add(ability);
-                        } else {
-                            plugin.getLogger().warning("Invalid ability '" + abilityKey + "' defined for artifact " + key);
-                        }
-                    }
-                }
-            }
-            artifact.setAbilities(abilitiesList);
         }
     }
 
     public void reload() {
         load();
+    }
+
+    public FileConfiguration getConfig() {
+        return config;
     }
 }

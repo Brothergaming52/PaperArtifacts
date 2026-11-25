@@ -415,6 +415,12 @@
         "icon": "artifacts_charm_of_shrinking",
         "frame": 0,
         "custom_model_data": 202056
+      },
+      {
+        "name": "artifacts_mimic_death",
+        "allow_offhand": true,
+        "icon": "artifacts_mimic_hurt",
+        "custom_model_data": 201007
       }
     ],
     "minecraft:cooked_beef": [

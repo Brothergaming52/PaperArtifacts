@@ -163,12 +163,16 @@ public class CampsitePopulator extends BlockPopulator {
         this.cfg = cfg;
     }
 
+    private CampsiteConfig getCfg() {
+        return this.cfg != null ? this.cfg : this.plugin.getCampsiteConfig();
+    }
+
     // ─── Main populate entry point ───────────────────────────────────────────────
 
     @Override
     public void populate(World world, Random random, Chunk chunk) {
-        CampsiteConfig config = plugin.getCampsiteConfig();
-        if (config == null || config.getCount() <= 0)
+        CampsiteConfig config = getCfg();
+        if (config == null || !config.isEnabled() || config.getCount() <= 0)
             return;
         
         // Check if campsites are enabled for this world

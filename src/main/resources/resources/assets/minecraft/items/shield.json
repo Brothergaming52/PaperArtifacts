@@ -1,0 +1,60 @@
+{
+  "model": {
+    "type": "minecraft:range_dispatch",
+    "property": "minecraft:custom_model_data",
+    "entries": [
+      {
+        "threshold": 201010,
+        "model": {
+          "type": "minecraft:select",
+          "property": "minecraft:display_context",
+          "cases": [
+            {
+              "when": [
+                "firstperson_lefthand",
+                "firstperson_righthand",
+                "thirdperson_lefthand",
+                "thirdperson_righthand",
+                "head"
+              ],
+              "model": {
+                "type": "minecraft:condition",
+                "property": "minecraft:using_item",
+                "on_false": {
+                  "type": "minecraft:model",
+                  "model": "artifacts:item/umbrella_held"
+                },
+                "on_true": {
+                  "type": "minecraft:model",
+                  "model": "artifacts:item/umbrella_held_blocking"
+                }
+              }
+            }
+          ],
+          "fallback": {
+            "type": "minecraft:model",
+            "model": "artifacts:item/umbrella"
+          }
+        }
+      },
+      {
+        "threshold": 201011,
+        "model": {
+          "type": "minecraft:special",
+          "model": {
+            "type": "minecraft:shield"
+          },
+          "base": "minecraft:item/shield"
+        }
+      }
+    ],
+    "fallback": {
+      "type": "minecraft:special",
+      "model": {
+        "type": "minecraft:shield"
+      },
+      "base": "minecraft:item/shield"
+    }
+  }
+}
+

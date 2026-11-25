@@ -5,7 +5,10 @@ import org.bg52.artifacts.manager.MimicManager;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Particle;
+import org.bukkit.entity.Player;
 import org.bukkit.block.Block;
+import org.bukkit.block.data.BlockData;
+import org.bukkit.block.data.Directional;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -32,6 +35,8 @@ public class MimicChestListener implements Listener {
     public void onPlayerInteract(PlayerInteractEvent event) {
         if (event.getAction() != Action.RIGHT_CLICK_BLOCK)
             return;
+        if (event.getHand() != org.bukkit.inventory.EquipmentSlot.HAND)
+            return;
 
         Block block = event.getClickedBlock();
         if (block == null)
@@ -42,6 +47,8 @@ public class MimicChestListener implements Listener {
         if (!mimicManager.isMimicChest(block.getLocation()))
             return;
 
+        Player player = event.getPlayer();
+
         // Cancel the chest opening
         event.setCancelled(true);
 
@@ -49,6 +56,33 @@ public class MimicChestListener implements Listener {
         mimicManager.removeMimicChest(block.getLocation());
 
         Location spawnLoc = block.getLocation().add(0.5, 0, 0.5);
+
+        BlockData blockData = block.getBlockData();
+        float yaw = 0.0f;
+        if (player != null) {
+            double dx = player.getLocation().getX() - spawnLoc.getX();
+            double dz = player.getLocation().getZ() - spawnLoc.getZ();
+            yaw = (float) Math.toDegrees(Math.atan2(-dx, dz));
+        } else if (blockData instanceof Directional) {
+            Directional directional = (Directional) blockData;
+            switch (directional.getFacing()) {
+                case NORTH:
+                    yaw = 180.0f;
+                    break;
+                case SOUTH:
+                    yaw = 0.0f;
+                    break;
+                case WEST:
+                    yaw = 90.0f;
+                    break;
+                case EAST:
+                    yaw = -90.0f;
+                    break;
+                default:
+                    yaw = 0.0f;
+            }
+        }
+        spawnLoc.setYaw(yaw);
 
         // Break the chest block
         block.setType(Material.AIR);
@@ -69,7 +103,7 @@ public class MimicChestListener implements Listener {
         }
 
         // Spawn the mimic
-        mimicManager.spawnMimic(spawnLoc);
+        mimicManager.spawnMimic(spawnLoc, player);
 
         plugin.getLogger().info("Mimic spawned at " + spawnLoc.getBlockX() + ", "
                 + spawnLoc.getBlockY() + ", " + spawnLoc.getBlockZ()

@@ -5,8 +5,10 @@ import org.bg52.artifacts.item.ArtifactItem;
 import org.bg52.artifacts.manager.ArtifactConfigManager;
 import org.bg52.artifacts.util.ArtifactUtil;
 import org.bg52.curiospaper.api.CuriosPaperAPI;
-import org.bg52.curiospaper.event.AccessoryEquipEvent;
+import org.bg52.curiospaper.api.event.AccessoryEquipEvent;
+import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.Particle;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Player;
@@ -16,6 +18,7 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.util.Vector;
+import org.bg52.artifacts.scheduler.PlatformScheduler;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -73,7 +76,7 @@ public class SnowshoesListener implements Listener {
                 ArtifactUtil.isArtifact(event.getPreviousItem(), ArtifactItem.SNOWSHOES)) {
 
             // Run on next tick to ensure hasEquipped is accurate
-            plugin.getServer().getScheduler().runTask(plugin, () -> {
+            PlatformScheduler.get().runEntity(player, () -> {
                 if (player.isOnline()) {
                     updateSnowshoesState(player);
                 }
@@ -141,6 +144,17 @@ public class SnowshoesListener implements Listener {
         // Horizontal move check for ice logic
         if (event.getFrom().getX() == event.getTo().getX() && event.getFrom().getZ() == event.getTo().getZ()) {
             return;
+        }
+
+        if (hasSnowshoes && config.isParticlesEnabled() && Math.random() < 0.25) {
+            Location pLoc = player.getLocation();
+            try {
+                player.getWorld().spawnParticle(Particle.valueOf("SNOWFLAKE"), pLoc, 2, 0.15, 0.02, 0.15, 0.02);
+            } catch (Throwable ignored) {
+                try {
+                    player.getWorld().spawnParticle(Particle.valueOf("SNOW_SHOVEL"), pLoc, 2, 0.15, 0.02, 0.15, 0.02);
+                } catch (Throwable ignored2) {}
+            }
         }
 
         if (!hasSnowshoes)

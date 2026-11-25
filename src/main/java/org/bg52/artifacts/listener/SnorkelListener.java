@@ -4,13 +4,15 @@ import org.bg52.artifacts.Artifacts;
 import org.bg52.artifacts.item.ArtifactItem;
 import org.bg52.artifacts.util.ArtifactUtil;
 import org.bg52.curiospaper.api.CuriosPaperAPI;
-import org.bg52.curiospaper.event.AccessoryEquipEvent;
+import org.bg52.curiospaper.api.event.AccessoryEquipEvent;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityAirChangeEvent;
 import org.bukkit.potion.PotionEffect;
+import org.bukkit.Particle;
+import org.bukkit.Sound;
 import org.bukkit.potion.PotionEffectType;
 
 /**
@@ -67,6 +69,14 @@ public class SnorkelListener implements Listener {
                     );
                     player.addPotionEffect(effect);
                     event.setCancelled(true);
+
+                    if (plugin.getArtifactConfig().isParticlesEnabled()) {
+                        player.getWorld().spawnParticle(Particle.BUBBLE, player.getEyeLocation(), 12, 0.3, 0.3, 0.3, 0.05);
+                    }
+                    if (plugin.getArtifactConfig().isSoundsEnabled()) {
+                        player.getWorld().playSound(player.getEyeLocation(), Sound.BLOCK_BUBBLE_COLUMN_UPWARDS_INSIDE, 0.7f, 1.2f);
+                        player.getWorld().playSound(player.getEyeLocation(), Sound.ENTITY_PLAYER_SPLASH, 0.5f, 1.6f);
+                    }
                 }
             }
         }

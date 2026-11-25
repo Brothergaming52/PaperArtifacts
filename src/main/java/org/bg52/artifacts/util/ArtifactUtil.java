@@ -6,6 +6,7 @@ import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataType;
 
 import java.util.List;
 
@@ -62,9 +63,10 @@ public class ArtifactUtil {
             return;
 
         List<ItemStack> items = api.getEquippedItems(player, artifact.getSlotType());
-        for (ItemStack item : items) {
+        for (int i = 0; i < items.size(); i++) {
+            ItemStack item = items.get(i);
             if (isArtifact(item, artifact)) {
-                api.removeEquippedItem(player, artifact.getSlotType(), item);
+                api.setEquippedItem(player, artifact.getSlotType(), i, null);
             }
         }
     }
@@ -100,5 +102,42 @@ public class ArtifactUtil {
      */
     public static boolean isHoldingMainHand(Player player, ArtifactItem artifact) {
         return isArtifact(player.getInventory().getItemInMainHand(), artifact);
+    }
+
+    /**
+     * Resolves an ItemStack to an ArtifactItem enum constant.
+     * Checks CuriosPaper PDC first, then falls back to CustomModelData matching.
+     *
+     * @param item the item stack to inspect
+     * @param api  CuriosPaperAPI instance for reading PDC
+     * @return the matched ArtifactItem, or null if not an artifact
+     */
+    public static ArtifactItem getArtifactItem(ItemStack item, CuriosPaperAPI api) {
+        if (item == null || item.getType() == Material.AIR) return null;
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return null;
+
+        if (api != null && api.getItemIdKey() != null) {
+            try {
+                String id = meta.getPersistentDataContainer().get(api.getItemIdKey(), PersistentDataType.STRING);
+                if (id != null) {
+                    ArtifactItem byId = ArtifactItem.fromId(id);
+                    if (byId != null) return byId;
+                }
+            } catch (Exception ignored) {
+            }
+        }
+
+        if (meta.hasCustomModelData()) {
+            int cmd = meta.getCustomModelData();
+            for (ArtifactItem candidate : ArtifactItem.values()) {
+                if (item.getType() == candidate.getBaseMaterial() &&
+                        (cmd == candidate.getCustomModelData() || cmd == candidate.get3DCustomModelData())) {
+                    return candidate;
+                }
+            }
+        }
+
+        return null;
     }
 }

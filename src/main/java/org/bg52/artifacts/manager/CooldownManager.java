@@ -29,6 +29,10 @@ public class CooldownManager {
         return System.currentTimeMillis() < cooldownEnd;
     }
 
+    public boolean isOnCooldown(Player player, String artifactKey) {
+        return hasCooldown(player, artifactKey);
+    }
+
     /**
      * Get remaining cooldown time in seconds
      * 

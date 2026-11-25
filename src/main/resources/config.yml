@@ -5,11 +5,16 @@
 # ═══════════════════════════════════════════════════════════════
 
 # DO NOT EDIT THIS
-version: "1.3"
+version: "2.0"
 
 # Update Checker
 updates:
   check-for-updates: true
+
+# Visual & Audio Settings
+effects:
+  enable-particles: true
+  enable-sounds: true
 
 items:
 
@@ -145,6 +150,8 @@ items:
   # ─── Item 20: Cloud in a Bottle ───
   cloud_in_a_bottle:
     enabled: true
+    # Immunity to fall damage when equipped or after double-jumping
+    fall-damage-immune: true
 
   # ─── Item 21: Obsidian Skull ───
   obsidian_skull:
@@ -184,7 +191,11 @@ items:
 
   # ─── Item 26: Chorus Totem ───
   chorus_totem:
-    enabled: true # disabled because it is not working correctly
+    enabled: true
+    # Teleportation search diameter in blocks (default: 16.0)
+    teleport-diameter: 16.0
+    # Rescues the player if falling into the void
+    save-from-void: true
   
   # ─── Item 27: Digging Claws ───
   digging_claws:
@@ -304,7 +315,7 @@ items:
     
   # ─── Item 46: Warp Drive ───
   warp_drive:
-    enabled: true # disabled because it is not working correctly
+    enabled: true
     # Hunger cost per use
     hunger-cost: 2
     
@@ -318,4 +329,4 @@ items:
     
   # ─── Item 48: Strider Shoes ───
   strider_shoes:
-    enabled: true # disabled because it is not working correctly
+    enabled: true

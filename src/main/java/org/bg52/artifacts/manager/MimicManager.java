@@ -1,322 +1,365 @@
 package org.bg52.artifacts.manager;
 
 import org.bg52.artifacts.Artifacts;
-import org.bg52.artifacts.entity.MimicAI;
-import org.bg52.artifacts.entity.MimicAnimator;
-import org.bg52.artifacts.entity.MimicEntity;
+import org.bg52.artifacts.entity.MimicEntityDefinition;
+import org.bg52.synthetix.api.SynthetixAPI;
+import org.bg52.synthetix.api.event.SynthetixEntityDeathEvent;
+import org.bg52.synthetix.api.event.SynthetixEntitySpawnEvent;
+import org.bg52.synthetix.entity.runtime.CustomEntityInstance;
 import org.bukkit.Bukkit;
-import org.bg52.curiospaper.storage.CuriosStorageAPI;
 import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.World;
+import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.scheduler.BukkitTask;
+import org.bg52.artifacts.scheduler.PlatformScheduler;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 
 /**
- * Manages all active mimic entities and tracks mimic chest locations.
- * Mimic chest locations are persisted to disk so they survive server restarts.
+ * Super-modular manager for Mimic entities and mimic chest locations.
+ *
+ * Integrates with Synthetix CustomEntityEngine:
+ * - Spawns Mimic as a CustomEntityDefinition with virtual skeletal rig and sub-voxel hitboxes.
+ * - Manages chest conversion, reversion timers, and world persistence.
  */
-public class MimicManager {
+public class MimicManager implements Listener {
 
     private final Artifacts plugin;
 
-    // Active mimics indexed by slime UUID
-    private final Map<UUID, MimicAI> activeMimics = new ConcurrentHashMap<UUID, MimicAI>();
+    // Active mimics indexed by driver mob UUID
+    private final Map<UUID, CustomEntityInstance> activeMimics = new ConcurrentHashMap<>();
 
-    // Zombie UUID → slime UUID mapping for reverse lookup
-    private final Map<UUID, UUID> zombieToSlime = new ConcurrentHashMap<UUID, UUID>();
+    // Map tracking idle ticks for active mimics (reverts to chest if no player nearby for 5 seconds)
+    private final Map<UUID, Integer> noTargetTicks = new ConcurrentHashMap<>();
 
     // Locations of placed mimic chests (not yet opened)
-    // Using block-snapped locations as keys
-    private final Set<Location> mimicChestLocations = Collections.synchronizedSet(new HashSet<Location>());
-
-    // Locations of recently died mimics (for preventing slime split)
-    private final Set<Location> recentDeathLocations = Collections.synchronizedSet(new HashSet<Location>());
+    private final Set<Location> mimicChestLocations = Collections.synchronizedSet(new HashSet<>());
 
     // Persistence file for mimic chest locations
     private final File dataFile;
-    private final CuriosStorageAPI storageAPI;
-    private static final UUID GLOBAL_DATA_UUID = new UUID(0L, 0L);
-    private static final String ADDON_ID = "mimic-chests";
+    private PlatformScheduler.TaskHandle monitorTask;
 
     public MimicManager(Artifacts plugin) {
         this.plugin = plugin;
         this.dataFile = new File(plugin.getDataFolder(), "mimic-chests.yml");
-        this.storageAPI = plugin.getCuriosPaperAPI().getStorageAPI();
+
+        // Register the Mimic custom entity definition into Synthetix
+        try {
+            if (SynthetixAPI.getOptional().isPresent()) {
+                SynthetixAPI.get().getCustomEntityRegistry().register(MimicEntityDefinition.getDefinition());
+                plugin.getLogger().info("[Mimic] Registered Mimic CustomEntityDefinition with Synthetix!");
+            }
+        } catch (Throwable t) {
+            plugin.getLogger().warning("[Mimic] Could not register Mimic definition with Synthetix: " + t.getMessage());
+        }
+
+        Bukkit.getPluginManager().registerEvents(this, plugin);
         loadMimicChests();
+        startMonitorTask();
+    }
+
+    @EventHandler
+    public void onCustomEntitySpawn(SynthetixEntitySpawnEvent event) {
+        CustomEntityInstance instance = event.getEntityInstance();
+        if (instance != null && "mimic".equalsIgnoreCase(instance.getDefinition().getId())) {
+            if (instance.getDriverMob() != null) {
+                UUID driverId = instance.getDriverMob().getUniqueId();
+                activeMimics.put(driverId, instance);
+                noTargetTicks.put(driverId, 0);
+            }
+        }
+    }
+
+    @EventHandler
+    public void onCustomEntityDeath(SynthetixEntityDeathEvent event) {
+        CustomEntityInstance instance = event.getEntityInstance();
+        if (instance != null && "mimic".equalsIgnoreCase(instance.getDefinition().getId())) {
+            if (instance.getDriverMob() != null) {
+                UUID driverId = instance.getDriverMob().getUniqueId();
+                activeMimics.remove(driverId);
+                noTargetTicks.remove(driverId);
+            }
+        }
+    }
+
+    private void startMonitorTask() {
+        this.monitorTask = PlatformScheduler.get().runGlobalTimer(() -> {
+            if (activeMimics.isEmpty()) return;
+
+            for (Map.Entry<UUID, CustomEntityInstance> entry : new ArrayList<>(activeMimics.entrySet())) {
+                UUID id = entry.getKey();
+                CustomEntityInstance instance = entry.getValue();
+
+                if (instance == null || instance.isDespawned() || instance.getDriverMob() == null || !instance.getDriverMob().isValid()) {
+                    activeMimics.remove(id);
+                    noTargetTicks.remove(id);
+                    continue;
+                }
+
+                LivingEntity mob = instance.getDriverMob();
+                Location loc = mob.getLocation();
+
+                // Check for nearby survival/adventure players within 16 blocks (or creative player targeting this mimic)
+                boolean playerNear = false;
+                if (loc.getWorld() != null) {
+                    for (Player player : loc.getWorld().getPlayers()) {
+                        if (player.getGameMode() != org.bukkit.GameMode.SPECTATOR) {
+                            if (player.getLocation().distanceSquared(loc) <= 256.0) { // 16 blocks
+                                if (player.getGameMode() == org.bukkit.GameMode.CREATIVE) {
+                                    if (mob instanceof org.bukkit.entity.Mob m && m.getTarget() != null && m.getTarget().equals(player)) {
+                                        playerNear = true;
+                                        break;
+                                    }
+                                } else {
+                                    playerNear = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (!playerNear) {
+                    int ticks = noTargetTicks.getOrDefault(id, 0) + 20;
+                    noTargetTicks.put(id, ticks);
+
+                    // 100 ticks = 5 seconds with no players nearby -> revert to chest!
+                    if (ticks >= 100) {
+                        revertMimic(id);
+                    }
+                } else {
+                    noTargetTicks.put(id, 0);
+                }
+            }
+        }, 20L, 20L);
     }
 
     /**
      * Spawn a new mimic at the given location.
      */
-    public MimicAI spawnMimic(Location location) {
-        MimicEntity entity = new MimicEntity(plugin);
-        entity.spawn(location);
-
-        MimicAnimator animator = new MimicAnimator(entity);
-        MimicAI ai = new MimicAI(plugin, entity, animator, this);
-
-        UUID slimeUUID = entity.getSlime().getUniqueId();
-
-        activeMimics.put(slimeUUID, ai);
-
-        // Track the zombie for cleanup and damage protection
-        if (entity.getZombie() != null) {
-            zombieToSlime.put(entity.getZombie().getUniqueId(), slimeUUID);
-        }
-
-        // Start the AI tick loop (every tick)
-        ai.runTaskTimer(plugin, 1L, 1L);
-
-        return ai;
+    public CustomEntityInstance spawnMimic(Location location) {
+        return spawnMimic(location, null);
     }
 
     /**
-     * Remove a mimic by slime UUID.
+     * Spawn a new mimic at the given location targeting an initial player.
      */
-    public void removeMimic(UUID slimeUUID) {
-        MimicAI ai = activeMimics.remove(slimeUUID);
-        if (ai != null) {
-            MimicEntity entity = ai.getMimicEntity();
-            if (entity.getZombie() != null) {
-                zombieToSlime.remove(entity.getZombie().getUniqueId());
-            }
-            try {
-                ai.cancel();
-            } catch (IllegalStateException ignored) {
-                // Already cancelled
-            }
-            entity.remove();
+    public CustomEntityInstance spawnMimic(Location location, Player initialTarget) {
+        if (!SynthetixAPI.getOptional().isPresent()) {
+            plugin.getLogger().severe("[Mimic] Cannot spawn Mimic: Synthetix API not available!");
+            return null;
         }
+
+        CustomEntityInstance instance = SynthetixAPI.get().getCustomEntityManager().spawnEntity(
+                MimicEntityDefinition.getDefinition(), location
+        );
+
+        if (instance == null) {
+            plugin.getLogger().warning("[Mimic] Failed to spawn CustomEntityInstance for Mimic!");
+            return null;
+        }
+
+        UUID driverId = instance.getDriverMob().getUniqueId();
+        activeMimics.put(driverId, instance);
+        noTargetTicks.put(driverId, 0);
+
+        if (initialTarget != null && instance.getDriverMob() instanceof org.bukkit.entity.Mob mob) {
+            mob.setTarget(initialTarget);
+        }
+
+        return instance;
+    }
+
+    public static final NamespacedKey MIMIC_CHEST_PDC = new NamespacedKey("artifacts", "is_mimic");
+
+    public void tagMimicChestPdc(Block block) {
+        if (block != null && block.getState() instanceof org.bukkit.block.TileState tileState) {
+            tileState.getPersistentDataContainer().set(MIMIC_CHEST_PDC, org.bukkit.persistence.PersistentDataType.BYTE, (byte) 1);
+            tileState.update(true, false);
+        }
+    }
+
+    public void clearMimicChestPdc(Block block) {
+        if (block != null && block.getState() instanceof org.bukkit.block.TileState tileState) {
+            tileState.getPersistentDataContainer().remove(MIMIC_CHEST_PDC);
+            tileState.update(true, false);
+        }
+    }
+
+    public boolean isPdcMimicChest(Block block) {
+        if (block != null && block.getState() instanceof org.bukkit.block.TileState tileState) {
+            return tileState.getPersistentDataContainer().has(MIMIC_CHEST_PDC, org.bukkit.persistence.PersistentDataType.BYTE);
+        }
+        return false;
     }
 
     /**
-     * Revert a mimic back to a chest block and re-register the location as a mimic
-     * chest.
-     * Called when the player leaves detection range or logs out.
+     * Revert an active mimic back to a chest block and re-register the location as a mimic chest.
      */
-    public void revertMimic(UUID slimeUUID) {
-        MimicAI ai = activeMimics.remove(slimeUUID);
-        if (ai != null) {
-            MimicEntity entity = ai.getMimicEntity();
+    public void revertMimic(UUID driverUuid) {
+        CustomEntityInstance instance = activeMimics.remove(driverUuid);
+        noTargetTicks.remove(driverUuid);
 
-            if (entity.getZombie() != null) {
-                zombieToSlime.remove(entity.getZombie().getUniqueId());
+        if (instance != null && instance.getDriverMob() != null && instance.getDriverMob().isValid()) {
+            Location loc = instance.getDriverMob().getLocation();
+
+            // Clean up any passengers (Bedrock proxy ArmorStands) before despawning driver mob
+            for (Entity pass : new ArrayList<>(instance.getDriverMob().getPassengers())) {
+                if (pass instanceof org.bukkit.entity.ArmorStand) {
+                    pass.remove();
+                }
             }
-            try {
-                ai.cancel();
-            } catch (IllegalStateException ignored) {
-            }
 
-            // Revert to chest block — uses safe placement now
-            Location chestLoc = entity.revertToChest();
+            instance.despawn();
 
-            // Re-register the location as a mimic chest so it triggers again
-            if (chestLoc != null) {
-                chestLoc.getWorld().playSound(chestLoc, "artifacts:entity.mimic.close", 1.0f, 1.0f);
-                addMimicChest(chestLoc);
+            // Revert ground block to chest with safe placement on region thread
+            PlatformScheduler.get().runLocation(loc, () -> {
+                Block placed = findSafePlacement(loc);
+                if (placed != null) {
+                    placed.setType(Material.CHEST);
+                    tagMimicChestPdc(placed);
+                    placed.getWorld().playSound(placed.getLocation(), "artifacts:entity.mimic.close", 1.0f, 1.0f);
+                    addMimicChest(placed.getLocation());
+                } else {
+                    Block origin = loc.getBlock();
+                    origin.setType(Material.CHEST);
+                    tagMimicChestPdc(origin);
+                    origin.getWorld().playSound(origin.getLocation(), "artifacts:entity.mimic.close", 1.0f, 1.0f);
+                    addMimicChest(origin.getLocation());
+                }
+            });
+        }
+    }
+
+    private Block findSafePlacement(Location loc) {
+        if (loc == null || loc.getWorld() == null) return null;
+        Block origin = loc.getBlock();
+        int originY = origin.getY();
+        int maxY = loc.getWorld().getMaxHeight() - 1;
+        int minY = loc.getWorld().getMinHeight();
+
+        // 1. Check origin block first
+        if (isBlockSafeForChest(origin)) {
+            return origin;
+        }
+
+        // 2. Check 1 block down
+        if (originY > minY) {
+            Block down = origin.getRelative(BlockFace.DOWN);
+            if (isBlockSafeForChest(down)) {
+                return down;
             }
         }
+
+        // 3. Check 1 block up
+        if (originY < maxY) {
+            Block up = origin.getRelative(BlockFace.UP);
+            if (isBlockSafeForChest(up)) {
+                return up;
+            }
+        }
+
+        return origin;
+    }
+
+    private boolean isBlockSafeForChest(Block block) {
+        if (!block.getType().isAir() && block.getType() != Material.SHORT_GRASS && block.getType() != Material.TALL_GRASS) {
+            return false;
+        }
+        Block below = block.getRelative(BlockFace.DOWN);
+        return below.getType().isSolid();
     }
 
     /**
-     * Get a MimicAI by slime UUID.
+     * Remove an active mimic by driver UUID.
      */
-    public MimicAI getMimic(UUID slimeUUID) {
-        return activeMimics.get(slimeUUID);
-    }
-
-    /**
-     * Get a MimicAI by zombie UUID.
-     */
-    public MimicAI getMimicByZombie(UUID zombieUUID) {
-        UUID slimeUUID = zombieToSlime.get(zombieUUID);
-        if (slimeUUID != null) {
-            return activeMimics.get(slimeUUID);
-        }
-        return null;
-    }
-
-    /**
-     * Check if an entity UUID belongs to a mimic (slime or zombie).
-     */
-    public boolean isMimicEntity(UUID entityUUID) {
-        return activeMimics.containsKey(entityUUID) || zombieToSlime.containsKey(entityUUID);
-    }
-
-    // ─── Mimic Chest Location Tracking ───
-
-    public void addMimicChest(Location location) {
-        Location snapped = toBlockLocation(location);
-        if (mimicChestLocations.add(snapped)) {
-            upsertLocationToTable(snapped);
+    public void removeMimic(UUID driverUuid) {
+        CustomEntityInstance instance = activeMimics.remove(driverUuid);
+        noTargetTicks.remove(driverUuid);
+        if (instance != null) {
+            instance.despawn();
         }
     }
 
-    public boolean isMimicChest(Location location) {
-        return mimicChestLocations.contains(toBlockLocation(location));
+    public CustomEntityInstance getMimic(UUID driverUuid) {
+        return activeMimics.get(driverUuid);
     }
 
-    public void removeMimicChest(Location location) {
-        Location snapped = toBlockLocation(location);
-        if (mimicChestLocations.remove(snapped)) {
-            deleteLocationFromTable(snapped);
-        }
-    }
-
-    // ─── Death Location Tracking (for slime split prevention) ───
-
-    public void addDeathLocation(Location location) {
-        final Location loc = toBlockLocation(location);
-        recentDeathLocations.add(loc);
-        // Remove after 5 ticks
-        plugin.getServer().getScheduler().runTaskLater(plugin, new Runnable() {
-            @Override
-            public void run() {
-                recentDeathLocations.remove(loc);
-            }
-        }, 5L);
-    }
-
-    public boolean isRecentDeathLocation(Location location) {
-        Location block = toBlockLocation(location);
-        for (Location deathLoc : recentDeathLocations) {
-            if (deathLoc.getWorld() != null && deathLoc.getWorld().equals(block.getWorld())
-                    && deathLoc.distanceSquared(block) < 9.0) { // Within 3 blocks
+    public boolean isMimicEntity(Entity entity) {
+        if (entity == null) return false;
+        if (activeMimics.containsKey(entity.getUniqueId())) return true;
+        if (SynthetixAPI.getOptional().isPresent()) {
+            CustomEntityInstance instance = SynthetixAPI.get().getCustomEntity(entity);
+            if (instance != null && "mimic".equalsIgnoreCase(instance.getDefinition().getId())) {
                 return true;
             }
         }
         return false;
     }
 
-    /**
-     * Normalize a location to block coordinates for consistent set lookups.
-     */
+    // ─── Mimic Chest Location Tracking ───
+
+    public void addMimicChest(Location location) {
+        Location snapped = toBlockLocation(location);
+        if (snapped.getBlock() != null && snapped.getBlock().getType() == Material.CHEST) {
+            tagMimicChestPdc(snapped.getBlock());
+        }
+        if (mimicChestLocations.add(snapped)) {
+            saveMimicChests();
+        }
+    }
+
+    public boolean isMimicChest(Location location) {
+        if (location == null) return false;
+        Location snapped = toBlockLocation(location);
+        if (mimicChestLocations.contains(snapped)) {
+            return true;
+        }
+        if (snapped.getBlock() != null && snapped.getBlock().getType() == Material.CHEST && isPdcMimicChest(snapped.getBlock())) {
+            mimicChestLocations.add(snapped);
+            return true;
+        }
+        return false;
+    }
+
+    public void removeMimicChest(Location location) {
+        Location snapped = toBlockLocation(location);
+        if (snapped.getBlock() != null && snapped.getBlock().getType() == Material.CHEST) {
+            clearMimicChestPdc(snapped.getBlock());
+        }
+        if (mimicChestLocations.remove(snapped)) {
+            saveMimicChests();
+        }
+    }
+
     private Location toBlockLocation(Location location) {
         return new Location(location.getWorld(),
                 location.getBlockX(), location.getBlockY(), location.getBlockZ());
     }
 
-    // ─── Persistence & Database Sync ───
+    // ─── Persistence ───
 
-    /**
-     * Load mimic chest locations. Uses custom database table,
-     * handling migration from legacy data if present.
-     */
     private void loadMimicChests() {
-        if (storageAPI == null) {
-            loadFromYamlFile(dataFile);
+        if (!dataFile.exists()) {
             return;
         }
 
-        // 1. Register the custom table
-        Map<String, String> sqliteCols = new java.util.HashMap<>();
-        sqliteCols.put("world", "VARCHAR(64)");
-        sqliteCols.put("x", "INTEGER");
-        sqliteCols.put("y", "INTEGER");
-        sqliteCols.put("z", "INTEGER");
-
-        Map<String, String> mysqlCols = new java.util.HashMap<>();
-        mysqlCols.put("world", "VARCHAR(64)");
-        mysqlCols.put("x", "INT");
-        mysqlCols.put("y", "INT");
-        mysqlCols.put("z", "INT");
-
-        List<String> pks = java.util.Arrays.asList("world", "x", "y", "z");
-
-        try {
-            storageAPI.registerTable("artifact_mimic_chests", sqliteCols, mysqlCols, pks).join();
-        } catch (Exception e) {
-            plugin.getLogger().log(Level.SEVERE, "Failed to register custom table artifact_mimic_chests", e);
-        }
-
-        // 2. Check for legacy yaml file migration
-        boolean migratedYaml = false;
-        if (dataFile.exists()) {
-            plugin.getLogger().info("Found legacy mimic-chests.yml file. Migrating to custom table...");
-            loadFromYamlFile(dataFile);
-            migratedYaml = true;
-        }
-
-        // 3. Check for legacy database migration (if database mode is active)
-        boolean migratedDb = false;
-        if (storageAPI.isDatabaseMode()) {
-            try {
-                String legacyData = storageAPI.loadData(GLOBAL_DATA_UUID, ADDON_ID).join();
-                if (legacyData != null && !legacyData.trim().isEmpty()) {
-                    plugin.getLogger().info("Found legacy database mimic-chests data. Migrating to custom table...");
-                    loadFromLegacyString(legacyData);
-                    migratedDb = true;
-                }
-            } catch (Exception e) {
-                plugin.getLogger().log(Level.WARNING, "Failed to read legacy mimic chest data from database", e);
-            }
-        }
-
-        // 4. If any legacy data was found, save it all to the new custom table and delete legacy data
-        if (migratedYaml || migratedDb) {
-            List<CompletableFuture<Void>> futures = new ArrayList<>();
-            synchronized (mimicChestLocations) {
-                for (Location loc : mimicChestLocations) {
-                    futures.add(upsertLocationToTable(loc));
-                }
-            }
-
-            // Wait for all migrations to be written to table
-            if (!futures.isEmpty()) {
-                try {
-                    CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
-                    plugin.getLogger().info("Migrated " + futures.size() + " location(s) to custom table.");
-                } catch (Exception e) {
-                    plugin.getLogger().log(Level.SEVERE, "Failed to complete migration to custom table", e);
-                }
-            }
-
-            // Cleanup legacy YAML file
-            if (dataFile.exists()) {
-                File migrated = new File(dataFile.getParentFile(), dataFile.getName() + ".migrated");
-                if (dataFile.renameTo(migrated)) {
-                    plugin.getLogger().info("Successfully renamed legacy file to " + migrated.getName());
-                } else {
-                    plugin.getLogger().warning("Could not rename legacy file " + dataFile.getName());
-                }
-            }
-
-            // Cleanup legacy database data
-            if (migratedDb) {
-                try {
-                    storageAPI.deleteData(GLOBAL_DATA_UUID, ADDON_ID).join();
-                    plugin.getLogger().info("Successfully deleted legacy database data for mimic-chests.");
-                } catch (Exception e) {
-                    plugin.getLogger().log(Level.WARNING, "Failed to delete legacy mimic-chests data from database", e);
-                }
-            }
-        } else {
-            // 5. No migration needed, just load from the custom table
-            loadFromCustomTable();
-        }
-    }
-
-    private void loadFromYamlFile(File file) {
-        if (!file.exists())
-            return;
-
-        YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
+        YamlConfiguration config = YamlConfiguration.loadConfiguration(dataFile);
         List<?> locations = config.getList("locations");
-        if (locations == null)
-            return;
+        if (locations == null) return;
 
         int loaded = 0;
         for (Object obj : locations) {
@@ -324,14 +367,10 @@ public class MimicManager {
                 @SuppressWarnings("unchecked")
                 Map<String, Object> map = (Map<String, Object>) obj;
                 String worldName = (String) map.get("world");
-                if (worldName == null)
-                    continue;
+                if (worldName == null) continue;
                 World world = Bukkit.getWorld(worldName);
-                if (world == null) {
-                    plugin.getLogger().warning("Mimic chest in unknown world '" + worldName
-                            + "', skipping (will load if world loads later)");
-                    continue;
-                }
+                if (world == null) continue;
+
                 int x = ((Number) map.get("x")).intValue();
                 int y = ((Number) map.get("y")).intValue();
                 int z = ((Number) map.get("z")).intValue();
@@ -341,160 +380,62 @@ public class MimicManager {
         }
 
         if (loaded > 0) {
-            plugin.getLogger().info("Loaded " + loaded + " mimic chest location(s) from legacy YAML.");
+            plugin.getLogger().info("Loaded " + loaded + " mimic chest location(s) from mimic-chests.yml.");
         }
     }
 
-    private void loadFromLegacyString(String serialized) {
+    public synchronized void saveMimicChests() {
+        YamlConfiguration config = new YamlConfiguration();
+        List<Map<String, Object>> list = new ArrayList<>();
+
+        synchronized (mimicChestLocations) {
+            for (Location loc : mimicChestLocations) {
+                if (loc.getWorld() == null) continue;
+                Map<String, Object> map = new LinkedHashMap<>();
+                map.put("world", loc.getWorld().getName());
+                map.put("x", loc.getBlockX());
+                map.put("y", loc.getBlockY());
+                map.put("z", loc.getBlockZ());
+                list.add(map);
+            }
+        }
+
+        config.set("locations", list);
         try {
-            YamlConfiguration config = new YamlConfiguration();
-            config.loadFromString(serialized);
-            List<?> locations = config.getList("locations");
-            if (locations == null)
-                return;
-
-            int loaded = 0;
-            for (Object obj : locations) {
-                if (obj instanceof Map) {
-                    @SuppressWarnings("unchecked")
-                    Map<String, Object> map = (Map<String, Object>) obj;
-                    String worldName = (String) map.get("world");
-                    if (worldName == null)
-                        continue;
-                    World world = Bukkit.getWorld(worldName);
-                    if (world == null) {
-                        plugin.getLogger().warning("Mimic chest in unknown world '" + worldName
-                                + "', skipping");
-                        continue;
-                    }
-                    int x = ((Number) map.get("x")).intValue();
-                    int y = ((Number) map.get("y")).intValue();
-                    int z = ((Number) map.get("z")).intValue();
-                    mimicChestLocations.add(new Location(world, x, y, z));
-                    loaded++;
-                }
-            }
-            if (loaded > 0) {
-                plugin.getLogger().info("Loaded " + loaded + " mimic chest location(s) from legacy database data.");
-            }
-        } catch (Exception e) {
-            plugin.getLogger().log(Level.WARNING, "Failed to parse legacy mimic locations string", e);
+            config.save(dataFile);
+        } catch (IOException e) {
+            plugin.getLogger().log(Level.SEVERE, "Failed to save mimic-chests.yml", e);
         }
     }
 
-    private void loadFromCustomTable() {
-        try {
-            List<Map<String, Object>> rows = storageAPI.selectRows("artifact_mimic_chests", new java.util.HashMap<>()).join();
-            int loaded = 0;
-            for (Map<String, Object> row : rows) {
-                String worldName = (String) row.get("world");
-                if (worldName == null) continue;
-                World world = Bukkit.getWorld(worldName);
-                if (world == null) {
-                    plugin.getLogger().warning("Mimic chest in unknown world '" + worldName
-                            + "', skipping (will load if world loads later)");
-                    continue;
-                }
-                int x = ((Number) row.get("x")).intValue();
-                int y = ((Number) row.get("y")).intValue();
-                int z = ((Number) row.get("z")).intValue();
-                mimicChestLocations.add(new Location(world, x, y, z));
-                loaded++;
-            }
-            if (loaded > 0) {
-                plugin.getLogger().info("Loaded " + loaded + " mimic chest location(s) from custom table.");
-            }
-        } catch (Exception e) {
-            plugin.getLogger().log(Level.WARNING, "Failed to load mimic chest locations from custom table", e);
-        }
-    }
-
-    private CompletableFuture<Void> upsertLocationToTable(Location loc) {
-        if (loc.getWorld() == null || storageAPI == null) {
-            return CompletableFuture.completedFuture(null);
-        }
-        Map<String, Object> rowData = new java.util.HashMap<>();
-        rowData.put("world", loc.getWorld().getName());
-        rowData.put("x", loc.getBlockX());
-        rowData.put("y", loc.getBlockY());
-        rowData.put("z", loc.getBlockZ());
-
-        List<String> pks = java.util.Arrays.asList("world", "x", "y", "z");
-
-        return storageAPI.upsertRow("artifact_mimic_chests", rowData, pks);
-    }
-
-    private CompletableFuture<Void> deleteLocationFromTable(Location loc) {
-        if (loc.getWorld() == null || storageAPI == null) {
-            return CompletableFuture.completedFuture(null);
-        }
-        Map<String, Object> conditions = new java.util.HashMap<>();
-        conditions.put("world", loc.getWorld().getName());
-        conditions.put("x", loc.getBlockX());
-        conditions.put("y", loc.getBlockY());
-        conditions.put("z", loc.getBlockZ());
-
-        return storageAPI.deleteRows("artifact_mimic_chests", conditions);
-    }
-
-    /**
-     * Remove all active mimics. Called on plugin disable.
-     * Reverts all active mimics back to chests first, then saves locations.
-     */
     public void shutdown() {
-        List<CompletableFuture<Void>> futures = new ArrayList<>();
+        if (monitorTask != null) {
+            monitorTask.cancel();
+            monitorTask = null;
+        }
 
         // Revert all active mimics to chests so they survive the restart
-        List<UUID> toRevert = new ArrayList<UUID>(activeMimics.keySet());
-        for (UUID slimeUUID : toRevert) {
-            MimicAI ai = activeMimics.remove(slimeUUID);
-            if (ai != null) {
-                MimicEntity entity = ai.getMimicEntity();
-                if (entity.getZombie() != null) {
-                    zombieToSlime.remove(entity.getZombie().getUniqueId());
-                }
-                try {
-                    ai.cancel();
-                } catch (IllegalStateException ignored) {
-                }
-                // Revert to chest and track the new location
-                Location chestLoc = entity.revertToChest();
-                if (chestLoc != null) {
-                    Location snapped = toBlockLocation(chestLoc);
-                    if (mimicChestLocations.add(snapped)) {
-                        futures.add(upsertLocationToTable(snapped));
-                    }
-                }
-            }
+        List<UUID> toRevert = new ArrayList<>(activeMimics.keySet());
+        for (UUID id : toRevert) {
+            revertMimic(id);
         }
 
-        // Wait for all database/file writes to finish during shutdown
-        if (!futures.isEmpty()) {
-            try {
-                plugin.getLogger().info("Saving " + futures.size() + " reverted mimic chest location(s) to storage...");
-                CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
-            } catch (Exception e) {
-                plugin.getLogger().log(Level.SEVERE, "Failed to save mimic chest locations during shutdown", e);
-            }
-        }
-
+        saveMimicChests();
         activeMimics.clear();
-        zombieToSlime.clear();
-        recentDeathLocations.clear();
+        noTargetTicks.clear();
     }
 
     public int getActiveMimicCount() {
         return activeMimics.size();
     }
 
-    /**
-     * Handle a player disconnecting — immediately revert any mimics targeting them.
-     */
     public void onPlayerQuit(Player player) {
-        List<UUID> toRevert = new ArrayList<UUID>();
-        for (Map.Entry<UUID, MimicAI> entry : activeMimics.entrySet()) {
-            if (player.equals(entry.getValue().getTarget())) {
-                toRevert.add(entry.getKey());
+        List<UUID> toRevert = new ArrayList<>();
+        for (Map.Entry<UUID, CustomEntityInstance> entry : activeMimics.entrySet()) {
+            if (entry.getValue().getDriverMob() instanceof org.bukkit.entity.Mob mob) {
+                if (player.equals(mob.getTarget())) {
+                    toRevert.add(entry.getKey());
+                }
             }
         }
         for (UUID uuid : toRevert) {

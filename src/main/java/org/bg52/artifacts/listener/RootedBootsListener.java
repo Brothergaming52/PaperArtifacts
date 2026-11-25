@@ -10,8 +10,11 @@ import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.Particle;
+import org.bukkit.Sound;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.scheduler.BukkitRunnable;
+import org.bg52.artifacts.scheduler.PlatformScheduler;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -22,6 +25,7 @@ public class RootedBootsListener implements Listener {
     private final Artifacts plugin;
     private final CuriosPaperAPI api;
     private final Map<UUID, Double> pendingFood = new HashMap<>();
+    private PlatformScheduler.TaskHandle task;
 
     public RootedBootsListener(Artifacts plugin, CuriosPaperAPI api) {
         this.plugin = plugin;
@@ -30,10 +34,9 @@ public class RootedBootsListener implements Listener {
     }
 
     private void startTask() {
-        new BukkitRunnable() {
-            @Override
-            public void run() {
-                for (Player player : plugin.getServer().getOnlinePlayers()) {
+        this.task = PlatformScheduler.get().runGlobalTimer(() -> {
+            for (Player player : plugin.getServer().getOnlinePlayers()) {
+                PlatformScheduler.get().runEntity(player, () -> {
                     if (plugin.getArtifactConfig().isItemEnabled("rooted_boots") &&
                         ArtifactUtil.hasEquipped(player, ArtifactItem.ROOTED_BOOTS, api)) {
                         
@@ -42,11 +45,9 @@ public class RootedBootsListener implements Listener {
                             replenishHunger(player);
                         }
                     }
-                }
+                });
             }
-        }.runTaskTimer(plugin, 40L, 40L); // Default interval is 40 ticks, but I'll make it dynamic if needed
-        // Note: interval is from config, but changing it requires task restart. 
-        // For simplicity I'll use a fixed 20 tick check and compare with last update time or just fixed 40.
+        }, 40L, 40L);
     }
 
     private void replenishHunger(Player player) {
@@ -61,6 +62,14 @@ public class RootedBootsListener implements Listener {
             int toAdd = (int) pending;
             player.setFoodLevel(Math.min(20, currentFood + toAdd));
             pending -= toAdd;
+
+            if (plugin.getArtifactConfig().isParticlesEnabled()) {
+                player.getWorld().spawnParticle(Particle.COMPOSTER, player.getLocation().add(0.0, 0.2, 0.0), 8, 0.3, 0.2, 0.3, 0.02);
+                player.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, player.getLocation().add(0.0, 0.2, 0.0), 5, 0.3, 0.2, 0.3, 0.0);
+            }
+            if (plugin.getArtifactConfig().isSoundsEnabled()) {
+                player.getWorld().playSound(player.getLocation(), Sound.BLOCK_GRASS_STEP, 0.6f, 1.6f);
+            }
         }
 
         pendingFood.put(player.getUniqueId(), pending);
@@ -69,5 +78,13 @@ public class RootedBootsListener implements Listener {
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
         pendingFood.remove(event.getPlayer().getUniqueId());
+    }
+
+    public void shutdown() {
+        if (task != null) {
+            task.cancel();
+            task = null;
+        }
+        pendingFood.clear();
     }
 }

@@ -1,4 +1,7 @@
 campsite:
+  # Enable or disable campsite generation entirely (true/false)
+  enabled: true
+
   # How many attempts to generate a campsite per chunk (0 = disabled)
   count: 10
 

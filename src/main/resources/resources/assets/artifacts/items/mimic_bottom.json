@@ -1,6 +1,7 @@
 {
     "model": {
         "type": "minecraft:model",
-        "model": "artifacts:item/mimic_attacked_hurt"
+        "model": "artifacts:item/mimic_bottom"
     }
 }
+

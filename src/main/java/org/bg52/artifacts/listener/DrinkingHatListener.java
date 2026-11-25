@@ -6,6 +6,7 @@ import org.bg52.artifacts.util.ArtifactUtil;
 import org.bg52.artifacts.util.FoodUtil;
 import org.bg52.curiospaper.api.CuriosPaperAPI;
 import org.bukkit.Material;
+import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -15,6 +16,7 @@ import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
+import org.bg52.artifacts.scheduler.PlatformScheduler;
 import org.bukkit.scheduler.BukkitRunnable;
 
 public class DrinkingHatListener implements Listener {
@@ -43,6 +45,17 @@ public class DrinkingHatListener implements Listener {
             return;
         }
 
+        // Check if item is eternal food on cooldown
+        if (ArtifactUtil.isArtifact(item, ArtifactItem.EVERLASTING_BEEF)) {
+            if (plugin.getCooldownManager().hasCooldown(player, ArtifactItem.EVERLASTING_BEEF.getId())) {
+                return;
+            }
+        } else if (ArtifactUtil.isArtifact(item, ArtifactItem.ETERNAL_STEAK)) {
+            if (plugin.getCooldownManager().hasCooldown(player, ArtifactItem.ETERNAL_STEAK.getId())) {
+                return;
+            }
+        }
+
         // 2. Check if they are wearing the hat and get the speed
         int targetSpeed = -1;
         if (plugin.getArtifactConfig().isItemEnabled("novelty_drinking_hat")
@@ -65,35 +78,43 @@ public class DrinkingHatListener implements Listener {
      * Zero tick loops. Purely event driven.
      */
     private void handleConsume(Player player, ItemStack startedItem, int targetSpeed, EquipmentSlot hand) {
-        new BukkitRunnable() {
-            @Override
-            public void run() {
-                // Verify player is still online
-                if (!player.isOnline())
-                    return;
+        PlatformScheduler.get().runEntityLater(player, () -> {
+            // Verify player is still online
+            if (!player.isOnline())
+                return;
 
-                // Verify they didn't let go of right click (fallback for 1.14/1.15)
-                boolean stillHolding = false;
-                try {
-                    stillHolding = player.isHandRaised();
-                } catch (NoSuchMethodError e) {
-                    stillHolding = true; // Assume true on versions where isHandRaised doesn't exist
-                }
+            // Verify they didn't let go of right click (fallback for 1.14/1.15)
+            boolean stillHolding = false;
+            try {
+                stillHolding = player.isHandRaised();
+            } catch (NoSuchMethodError e) {
+                stillHolding = true; // Assume true on versions where isHandRaised doesn't exist
+            }
 
-                if (!stillHolding)
-                    return;
+            if (!stillHolding)
+                return;
 
-                // Verify they didn't swap items while right-clicking
-                ItemStack currentItem = hand == EquipmentSlot.HAND ? player.getInventory().getItemInMainHand()
-                        : player.getInventory().getItemInOffHand();
+            // Verify they didn't swap items while right-clicking
+            ItemStack currentItem = hand == EquipmentSlot.HAND ? player.getInventory().getItemInMainHand()
+                    : player.getInventory().getItemInOffHand();
 
-                if (currentItem == null || !currentItem.isSimilar(startedItem))
-                    return;
+            if (currentItem == null || !currentItem.isSimilar(startedItem))
+                return;
 
-                // --- 1. YOUR FOOD UTIL GOES HERE ---
-                FoodUtil.applyFoodEffects(player, currentItem);
+            // --- 1. YOUR FOOD UTIL GOES HERE ---
+            FoodUtil.applyFoodEffects(player, currentItem);
 
-                // --- 2. Consume the item manually ---
+            // --- 2. Consume the item manually (preserve eternal food) ---
+            boolean isEternalBeef = ArtifactUtil.isArtifact(currentItem, ArtifactItem.EVERLASTING_BEEF);
+            boolean isEternalSteak = ArtifactUtil.isArtifact(currentItem, ArtifactItem.ETERNAL_STEAK);
+
+            if (isEternalBeef) {
+                plugin.getCooldownManager().setCooldown(player, ArtifactItem.EVERLASTING_BEEF.getId(),
+                        plugin.getArtifactConfig().getEverlastingBeefCooldown());
+            } else if (isEternalSteak) {
+                plugin.getCooldownManager().setCooldown(player, ArtifactItem.ETERNAL_STEAK.getId(),
+                        plugin.getArtifactConfig().getEternalSteakCooldown());
+            } else {
                 if (currentItem.getAmount() > 1) {
                     currentItem.setAmount(currentItem.getAmount() - 1);
                 } else {
@@ -103,15 +124,15 @@ public class DrinkingHatListener implements Listener {
                         player.getInventory().setItemInOffHand(null);
                     }
                 }
-
-                // --- 3. Play Audio ---
-                player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_BURP, 1.0f, 1.0f);
-
-                // --- 4. Cancel Vanilla Animation ---
-                // Forcing an inventory update breaks the client's active eating state
-                player.updateInventory();
             }
-        }.runTaskLater(plugin, targetSpeed);
+
+            // --- 3. Play Audio ---
+            player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_BURP, 1.0f, 1.0f);
+
+            // --- 4. Cancel Vanilla Animation ---
+            // Forcing an inventory update breaks the client's active eating state
+            player.updateInventory();
+        }, targetSpeed);
     }
 
     public void shutdown() {

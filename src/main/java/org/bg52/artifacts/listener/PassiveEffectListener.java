@@ -4,7 +4,7 @@ import org.bg52.artifacts.Artifacts;
 import org.bg52.artifacts.item.ArtifactItem;
 import org.bg52.artifacts.util.ArtifactUtil;
 import org.bg52.curiospaper.api.CuriosPaperAPI;
-import org.bg52.curiospaper.event.AccessoryEquipEvent;
+import org.bg52.curiospaper.api.event.AccessoryEquipEvent;
 import org.bukkit.Location;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
@@ -15,8 +15,10 @@ import org.bukkit.event.entity.EntityPotionEffectEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.potion.PotionEffect;
+import org.bukkit.Particle;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.util.Vector;
+import org.bg52.artifacts.scheduler.PlatformScheduler;
 
 /**
  * Handles continuously active curio effects:
@@ -31,6 +33,7 @@ public class PassiveEffectListener implements Listener {
 
     private final Artifacts plugin;
     private final CuriosPaperAPI api;
+    private PlatformScheduler.TaskHandle kittyTask;
 
     public PassiveEffectListener(Artifacts plugin, CuriosPaperAPI api) {
         this.plugin = plugin;
@@ -52,9 +55,15 @@ public class PassiveEffectListener implements Listener {
             }
             if (ArtifactUtil.isArtifact(event.getPreviousItem(), ArtifactItem.SCARF_OF_INVISIBILITY)) {
                 removeEffect(player, PotionEffectType.INVISIBILITY);
+                if (plugin.getArtifactConfig().isParticlesEnabled()) {
+                    player.getWorld().spawnParticle(Particle.SMOKE, player.getLocation().add(0.0, 1.0, 0.0), 10, 0.3, 0.5, 0.3, 0.05);
+                }
+                if (plugin.getArtifactConfig().isSoundsEnabled()) {
+                    player.getWorld().playSound(player.getLocation(), Sound.BLOCK_LEVER_CLICK, 0.6f, 1.8f);
+                }
             }
             if (ArtifactUtil.isArtifact(event.getPreviousItem(), ArtifactItem.BUNNY_HOPPERS)) {
-                removeEffect(player, PotionEffectType.JUMP);
+                removeEffect(player, PotionEffectType.JUMP_BOOST);
             }
             if (ArtifactUtil.isArtifact(event.getPreviousItem(), ArtifactItem.FLIPPERS)) {
                 removeEffect(player, PotionEffectType.DOLPHINS_GRACE);
@@ -71,16 +80,35 @@ public class PassiveEffectListener implements Listener {
             if (ArtifactUtil.isArtifact(event.getNewItem(), ArtifactItem.SCARF_OF_INVISIBILITY)) {
                 if (plugin.getArtifactConfig().isItemEnabled("scarf_of_invisibility")) {
                     applyInvisibility(player);
+                    if (plugin.getArtifactConfig().isParticlesEnabled()) {
+                        player.getWorld().spawnParticle(Particle.SMOKE, player.getLocation().add(0.0, 1.0, 0.0), 12, 0.3, 0.5, 0.3, 0.05);
+                    }
+                    if (plugin.getArtifactConfig().isSoundsEnabled()) {
+                        try {
+                            player.getWorld().playSound(player.getLocation(), Sound.ENTITY_ILLUSIONER_MIRROR_MOVE, 0.6f, 1.5f);
+                        } catch (Throwable ignored) {
+                            player.getWorld().playSound(player.getLocation(), Sound.BLOCK_ENCHANTMENT_TABLE_USE, 0.8f, 1.6f);
+                        }
+                    }
                 }
             }
             if (ArtifactUtil.isArtifact(event.getNewItem(), ArtifactItem.BUNNY_HOPPERS)) {
                 if (plugin.getArtifactConfig().isItemEnabled("bunny_hoppers")) {
                     applyBunnyHoppersJumpHeight(player);
+                    if (plugin.getArtifactConfig().isSoundsEnabled()) {
+                        player.getWorld().playSound(player.getLocation(), Sound.ENTITY_RABBIT_JUMP, 0.8f, 1.2f);
+                    }
                 }
             }
             if (ArtifactUtil.isArtifact(event.getNewItem(), ArtifactItem.FLIPPERS)) {
                 if (plugin.getArtifactConfig().isItemEnabled("flippers")) {
                     applyDolphinsGrace(player);
+                    if (plugin.getArtifactConfig().isParticlesEnabled()) {
+                        player.getWorld().spawnParticle(Particle.SPLASH, player.getLocation().add(0.0, 0.2, 0.0), 10, 0.3, 0.1, 0.3, 0.1);
+                    }
+                    if (plugin.getArtifactConfig().isSoundsEnabled()) {
+                        player.getWorld().playSound(player.getLocation(), Sound.ENTITY_PLAYER_SPLASH, 0.6f, 1.4f);
+                    }
                 }
             }
         }
@@ -95,11 +123,12 @@ public class PassiveEffectListener implements Listener {
     public void onPlayerRespawn(PlayerRespawnEvent event) {
         // Delay by 1 tick because inventory might not be fully loaded or effects
         // cleared on same tick
-        plugin.getServer().getScheduler().runTask(plugin, () -> {
-            if (event.getPlayer().isOnline()) {
-                checkAndApplyEffects(event.getPlayer());
+        Player player = event.getPlayer();
+        PlatformScheduler.get().runEntityLater(player, () -> {
+            if (player.isOnline()) {
+                checkAndApplyEffects(player);
             }
-        });
+        }, 1L);
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
@@ -115,7 +144,7 @@ public class PassiveEffectListener implements Listener {
 
             if (type == null) {
                 // Milk or clear all
-                plugin.getServer().getScheduler().runTask(plugin, () -> {
+                PlatformScheduler.get().runEntity(player, () -> {
                     if (player.isOnline()) {
                         checkAndApplyEffects(player);
                     }
@@ -123,7 +152,7 @@ public class PassiveEffectListener implements Listener {
             } else if (type.equals(PotionEffectType.NIGHT_VISION)) {
                 if (plugin.getArtifactConfig().isItemEnabled("night_vision_goggles")
                         && ArtifactUtil.hasEquipped(player, ArtifactItem.NIGHT_VISION_GOGGLES, api)) {
-                    plugin.getServer().getScheduler().runTask(plugin, () -> {
+                    PlatformScheduler.get().runEntity(player, () -> {
                         if (player.isOnline()) {
                             applyNightVision(player);
                         }
@@ -132,16 +161,16 @@ public class PassiveEffectListener implements Listener {
             } else if (type.equals(PotionEffectType.INVISIBILITY)) {
                 if (plugin.getArtifactConfig().isItemEnabled("scarf_of_invisibility")
                         && ArtifactUtil.hasEquipped(player, ArtifactItem.SCARF_OF_INVISIBILITY, api)) {
-                    plugin.getServer().getScheduler().runTask(plugin, () -> {
+                    PlatformScheduler.get().runEntity(player, () -> {
                         if (player.isOnline()) {
                             applyInvisibility(player);
                         }
                     });
                 }
-            } else if (type.equals(PotionEffectType.JUMP)) {
+            } else if (type.equals(PotionEffectType.JUMP_BOOST)) {
                 if (plugin.getArtifactConfig().isItemEnabled("bunny_hoppers")
                         && ArtifactUtil.hasEquipped(player, ArtifactItem.BUNNY_HOPPERS, api)) {
-                    plugin.getServer().getScheduler().runTask(plugin, () -> {
+                    PlatformScheduler.get().runEntity(player, () -> {
                         if (player.isOnline()) {
                             applyBunnyHoppersJumpHeight(player);
                         }
@@ -150,7 +179,7 @@ public class PassiveEffectListener implements Listener {
             } else if (type.equals(PotionEffectType.DOLPHINS_GRACE)) {
                 if (plugin.getArtifactConfig().isItemEnabled("flippers")
                         && ArtifactUtil.hasEquipped(player, ArtifactItem.FLIPPERS, api)) {
-                    plugin.getServer().getScheduler().runTask(plugin, () -> {
+                    PlatformScheduler.get().runEntity(player, () -> {
                         if (player.isOnline()) {
                             applyDolphinsGrace(player);
                         }
@@ -179,7 +208,7 @@ public class PassiveEffectListener implements Listener {
                 && ArtifactUtil.hasEquipped(player, ArtifactItem.BUNNY_HOPPERS, api)) {
             applyBunnyHoppersJumpHeight(player);
         } else {
-            removeEffect(player, PotionEffectType.JUMP);
+            removeEffect(player, PotionEffectType.JUMP_BOOST);
         }
 
         if (plugin.getArtifactConfig().isItemEnabled("kitty_slippers")
@@ -221,7 +250,7 @@ public class PassiveEffectListener implements Listener {
 
     private void applyBunnyHoppersJumpHeight(Player player) {
         PotionEffect effect = new PotionEffect(
-                PotionEffectType.JUMP,
+                PotionEffectType.JUMP_BOOST,
                 Integer.MAX_VALUE, // Infinite duration since it's event based
                 plugin.getArtifactConfig().getBunnyHoppersJumpHeightAmplifier(),
                 false, // ambient
@@ -258,6 +287,12 @@ public class PassiveEffectListener implements Listener {
                         org.bukkit.entity.Entity entity = event.getEntity();
                         if (entity instanceof org.bukkit.entity.Creeper) {
                             makeCreeperFlee((org.bukkit.entity.Creeper) entity, player.getLocation());
+                            if (plugin.getArtifactConfig().isParticlesEnabled()) {
+                                entity.getWorld().spawnParticle(Particle.SPLASH, entity.getLocation().add(0.0, 1.5, 0.0), 10, 0.3, 0.3, 0.3, 0.1);
+                            }
+                            if (plugin.getArtifactConfig().isSoundsEnabled()) {
+                                entity.getWorld().playSound(entity.getLocation(), Sound.ENTITY_CAT_HISS, 0.8f, 1.2f);
+                            }
                         }
                     }
                 }
@@ -282,13 +317,14 @@ public class PassiveEffectListener implements Listener {
         }
 
         // Fallback for Spigot/Older versions (1.14-1.15): Multi-tick velocity push
-        new org.bukkit.scheduler.BukkitRunnable() {
+        PlatformScheduler.TaskHandle[] pushHandle = new PlatformScheduler.TaskHandle[1];
+        pushHandle[0] = PlatformScheduler.get().runEntityTimer(creeper, new Runnable() {
             int ticks = 0;
 
             @Override
             public void run() {
                 if (ticks++ > 30 || !creeper.isValid()) {
-                    this.cancel();
+                    if (pushHandle[0] != null) pushHandle[0].cancel();
                     return;
                 }
                 // Push away from player horizontally
@@ -300,24 +336,26 @@ public class PassiveEffectListener implements Listener {
                     creeper.setVelocity(dir);
                 }
             }
-        }.runTaskTimer(plugin, 0, 1);
+        }, 1L, 1L);
     }
 
     private void startKittySlippersTask() {
-        plugin.getServer().getScheduler().runTaskTimer(plugin, () -> {
+        this.kittyTask = PlatformScheduler.get().runGlobalTimer(() -> {
             for (Player player : plugin.getServer().getOnlinePlayers()) {
-                if (plugin.getArtifactConfig().isItemEnabled("kitty_slippers") &&
-                        ArtifactUtil.hasEquipped(player, ArtifactItem.KITTY_SLIPPERS, api)) {
+                PlatformScheduler.get().runEntity(player, () -> {
+                    if (plugin.getArtifactConfig().isItemEnabled("kitty_slippers") &&
+                            ArtifactUtil.hasEquipped(player, ArtifactItem.KITTY_SLIPPERS, api)) {
 
-                    // random cat sound occasionally
-                    if (Math.random() < 0.2) {
-                        Sound[] catSounds = { Sound.ENTITY_CAT_PURR, Sound.ENTITY_CAT_PURREOW,
-                                Sound.ENTITY_CAT_AMBIENT };
-                        Sound sound = catSounds[(int) (Math.random() * catSounds.length)];
-                        player.getWorld().playSound(player.getLocation(), sound, 1.0f,
-                                0.8f + (float) (Math.random() * 0.4));
+                        // random cat sound occasionally
+                        if (Math.random() < 0.2 && plugin.getArtifactConfig().isSoundsEnabled()) {
+                            Sound[] catSounds = { Sound.ENTITY_CAT_PURR, Sound.ENTITY_CAT_PURREOW,
+                                    Sound.ENTITY_CAT_AMBIENT };
+                            Sound sound = catSounds[(int) (Math.random() * catSounds.length)];
+                            player.getWorld().playSound(player.getLocation(), sound, 1.0f,
+                                    0.8f + (float) (Math.random() * 0.4));
+                        }
                     }
-                }
+                });
             }
         }, 100L, 100L);
     }
@@ -333,11 +371,15 @@ public class PassiveEffectListener implements Listener {
     }
 
     public void shutdown() {
+        if (kittyTask != null) {
+            kittyTask.cancel();
+            kittyTask = null;
+        }
         // Clean up effects
         for (Player player : plugin.getServer().getOnlinePlayers()) {
             removeEffect(player, PotionEffectType.NIGHT_VISION);
             removeEffect(player, PotionEffectType.INVISIBILITY);
-            removeEffect(player, PotionEffectType.JUMP);
+            removeEffect(player, PotionEffectType.JUMP_BOOST);
             removeEffect(player, PotionEffectType.DOLPHINS_GRACE);
         }
     }
